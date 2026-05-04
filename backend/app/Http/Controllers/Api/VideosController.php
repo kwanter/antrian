@@ -33,7 +33,7 @@ class VideosController extends Controller
     {
         $request->validate([
             'display_id' => 'required|exists:displays,id',
-            'file_url' => 'required|url',
+            'video' => 'required|file|mimes:mp4,webm,avi,mov,mkv|max:102400',
             'title' => 'required|string|max:255',
             'duration' => 'nullable|integer',
             'volume_level' => 'nullable|numeric|min:0|max:1',
@@ -41,9 +41,12 @@ class VideosController extends Controller
             'playlist_order' => 'nullable|integer',
         ]);
 
+        $path = $request->file('video')->store('videos', 'public');
+        $fileUrl = "/storage/{$path}";
+
         $video = Video::create([
             'display_id' => $request->display_id,
-            'file_url' => $request->file_url,
+            'file_url' => $fileUrl,
             'title' => $request->title,
             'duration' => $request->duration,
             'volume_level' => $request->volume_level ?? 1.0,
@@ -78,6 +81,7 @@ class VideosController extends Controller
         $oldData = $video->toArray();
 
         $request->validate([
+            'video' => 'sometimes|file|mimes:mp4,webm,avi,mov,mkv|max:102400',
             'file_url' => 'sometimes|url',
             'title' => 'sometimes|string|max:255',
             'duration' => 'nullable|integer',
@@ -86,9 +90,16 @@ class VideosController extends Controller
             'playlist_order' => 'nullable|integer',
         ]);
 
-        $video->update($request->only([
+        $updateData = $request->only([
             'file_url', 'title', 'duration', 'volume_level', 'is_active', 'playlist_order'
-        ]));
+        ]);
+
+        if ($request->hasFile('video')) {
+            $path = $request->file('video')->store('videos', 'public');
+            $updateData['file_url'] = "/storage/{$path}";
+        }
+
+        $video->update($updateData);
 
         AuditLog::log(
             action: 'update',
@@ -108,6 +119,13 @@ class VideosController extends Controller
     public function destroy(Request $request, Video $video): JsonResponse
     {
         $oldData = $video->toArray();
+
+        // Delete the file from storage if it's a local file
+        if ($video->file_url && str_starts_with($video->file_url, '/storage/')) {
+            $relativePath = str_replace('/storage/', '', $video->file_url);
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+        }
+
         $video->delete();
 
         AuditLog::log(

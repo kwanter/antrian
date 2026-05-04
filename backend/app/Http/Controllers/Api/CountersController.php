@@ -151,4 +151,28 @@ class CountersController extends Controller
             'message' => 'User unassigned from counter successfully',
         ]);
     }
+
+    public function syncUsers(Request $request, Counter $counter): JsonResponse
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+        ]);
+
+        $counter->users()->sync(array_keys(array_flip($request->user_ids)));
+
+        AuditLog::log(
+            action: 'sync_users',
+            model: 'Counter',
+            modelId: $counter->id,
+            changes: ['user_ids' => $request->user_ids],
+            ipAddress: $request->ip(),
+            userId: $request->user()?->id
+        );
+
+        return response()->json([
+            'data' => $counter->load('users'),
+            'message' => 'Counter users synced successfully',
+        ]);
+    }
 }

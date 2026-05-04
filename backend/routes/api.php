@@ -21,6 +21,13 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/auth/login', [AuthController::class, 'login']);
+
+    // Kiosk — ticket creation (no auth required)
+    Route::post('/queues', [QueuesController::class, 'store']);
+    Route::get('/queues/stats', [QueuesController::class, 'stats']);
+
+    // Public display sync
+    Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);
 });
 
 // Protected routes (requires Sanctum authentication)
@@ -32,8 +39,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Queues
     Route::get('/queues', [QueuesController::class, 'index']);
-    Route::post('/queues', [QueuesController::class, 'store']);
-    Route::get('/queues/stats', [QueuesController::class, 'stats']);
     Route::get('/queues/{queue}', [QueuesController::class, 'show']);
     Route::post('/queues/{queue}/call', [QueuesController::class, 'call']);
     Route::post('/queues/{queue}/complete', [QueuesController::class, 'complete']);
@@ -50,6 +55,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::delete('/counters/{counter}', [CountersController::class, 'destroy']);
     Route::post('/counters/{counter}/assign-user', [CountersController::class, 'assignUser']);
     Route::post('/counters/{counter}/unassign-user', [CountersController::class, 'unassignUser']);
+    Route::post('/counters/{counter}/sync-users', [CountersController::class, 'syncUsers']);
 
     // Users
     Route::get('/users', [UsersController::class, 'index']);
