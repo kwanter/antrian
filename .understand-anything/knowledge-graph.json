@@ -1,0 +1,1866 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "antrian",
+    "languages": [
+      "php",
+      "javascript",
+      "yaml",
+      "json",
+      "markdown"
+    ],
+    "frameworks": [
+      "Laravel",
+      "Laravel Reverb",
+      "Next.js",
+      "React",
+      "Tailwind CSS",
+      "Zustand"
+    ],
+    "description": "Queue management system for service counters with real-time WebSocket updates",
+    "analyzedAt": "2026-05-05T01:57:33.597Z",
+    "gitCommitHash": "86a1889a18d5648930500d5e88ed52237069b751"
+  },
+  "nodes": [
+    {
+      "id": "file:backend/app/Events/QueueCalled.php",
+      "type": "file",
+      "name": "QueueCalled.php",
+      "filePath": "backend/app/Events/QueueCalled.php",
+      "summary": "Broadcast event fired when a queue ticket is called at a counter for service.",
+      "tags": [
+        "event",
+        "broadcast",
+        "real-time",
+        "queue"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Events/QueueCompleted.php",
+      "type": "file",
+      "name": "QueueCompleted.php",
+      "filePath": "backend/app/Events/QueueCompleted.php",
+      "summary": "Broadcast event fired when a queue ticket service is completed.",
+      "tags": [
+        "event",
+        "broadcast",
+        "real-time",
+        "queue"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Events/QueueCreated.php",
+      "type": "file",
+      "name": "QueueCreated.php",
+      "filePath": "backend/app/Events/QueueCreated.php",
+      "summary": "Broadcast event fired when a new queue ticket is generated at kiosk.",
+      "tags": [
+        "event",
+        "broadcast",
+        "real-time",
+        "queue"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Events/QueueSkipped.php",
+      "type": "file",
+      "name": "QueueSkipped.php",
+      "filePath": "backend/app/Events/QueueSkipped.php",
+      "summary": "Broadcast event fired when a queue ticket is skipped by counter staff.",
+      "tags": [
+        "event",
+        "broadcast",
+        "real-time",
+        "queue"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Events/VolumeUpdate.php",
+      "type": "file",
+      "name": "VolumeUpdate.php",
+      "filePath": "backend/app/Events/VolumeUpdate.php",
+      "summary": "Broadcast event fired when display volume is adjusted remotely.",
+      "tags": [
+        "event",
+        "broadcast",
+        "real-time",
+        "display"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "type": "file",
+      "name": "QueuesController.php",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "summary": "API controller handling queue ticket lifecycle: create, call, recall, complete, skip, and statistics.",
+      "tags": [
+        "api-handler",
+        "controller",
+        "queue",
+        "crud"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:backend/app/Models/Queue.php",
+      "type": "file",
+      "name": "Queue.php",
+      "filePath": "backend/app/Models/Queue.php",
+      "summary": "Eloquent model for queue tickets with relationships to counters, users, and logs. Provides state transition methods.",
+      "tags": [
+        "model",
+        "data-model",
+        "queue",
+        "eloquent"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/routes/api.php",
+      "type": "file",
+      "name": "api.php",
+      "filePath": "backend/routes/api.php",
+      "summary": "API route definitions for all endpoints including queues, auth, counters, displays, and audit logs.",
+      "tags": [
+        "routing",
+        "api",
+        "configuration"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/routes/channels.php",
+      "type": "file",
+      "name": "channels.php",
+      "filePath": "backend/routes/channels.php",
+      "summary": "WebSocket channel authorization rules for real-time broadcasting.",
+      "tags": [
+        "routing",
+        "websocket",
+        "authorization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Events/QueueCalled.php:QueueCalled",
+      "type": "class",
+      "name": "QueueCalled",
+      "filePath": "backend/app/Events/QueueCalled.php",
+      "lineRange": [
+        12,
+        51
+      ],
+      "summary": "Laravel broadcast event class announcing when a ticket is called.",
+      "tags": [
+        "event",
+        "broadcast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Events/QueueCompleted.php:QueueCompleted",
+      "type": "class",
+      "name": "QueueCompleted",
+      "filePath": "backend/app/Events/QueueCompleted.php",
+      "lineRange": [
+        12,
+        49
+      ],
+      "summary": "Laravel broadcast event class announcing when a ticket is completed.",
+      "tags": [
+        "event",
+        "broadcast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Events/QueueCreated.php:QueueCreated",
+      "type": "class",
+      "name": "QueueCreated",
+      "filePath": "backend/app/Events/QueueCreated.php",
+      "lineRange": [
+        12,
+        48
+      ],
+      "summary": "Laravel broadcast event class announcing when a new ticket is created.",
+      "tags": [
+        "event",
+        "broadcast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Events/QueueSkipped.php:QueueSkipped",
+      "type": "class",
+      "name": "QueueSkipped",
+      "filePath": "backend/app/Events/QueueSkipped.php",
+      "lineRange": [
+        12,
+        44
+      ],
+      "summary": "Laravel broadcast event class announcing when a ticket is skipped.",
+      "tags": [
+        "event",
+        "broadcast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Events/VolumeUpdate.php:VolumeUpdate",
+      "type": "class",
+      "name": "VolumeUpdate",
+      "filePath": "backend/app/Events/VolumeUpdate.php",
+      "lineRange": [
+        12,
+        44
+      ],
+      "summary": "Laravel broadcast event class announcing display volume changes.",
+      "tags": [
+        "event",
+        "broadcast"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Http/Controllers/Api/QueuesController.php:QueuesController",
+      "type": "class",
+      "name": "QueuesController",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        14,
+        381
+      ],
+      "summary": "API controller with 11 methods managing queue ticket operations and statistics.",
+      "tags": [
+        "controller",
+        "api-handler"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "class:backend/app/Models/Queue.php:Queue",
+      "type": "class",
+      "name": "Queue",
+      "filePath": "backend/app/Models/Queue.php",
+      "lineRange": [
+        10,
+        102
+      ],
+      "summary": "Eloquent model with state checks, relationships, and transition methods for queue tickets.",
+      "tags": [
+        "model",
+        "data-model"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:index",
+      "type": "function",
+      "name": "index",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        16,
+        55
+      ],
+      "summary": "GET endpoint listing queues with filters by status, date range, and counter ID. Returns paginated response.",
+      "tags": [
+        "api-handler",
+        "query",
+        "filtering"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:store",
+      "type": "function",
+      "name": "store",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        57,
+        85
+      ],
+      "summary": "POST endpoint creating new queue ticket with auto-generated number. Broadcasts QueueCreated event.",
+      "tags": [
+        "api-handler",
+        "create",
+        "broadcast"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:call",
+      "type": "function",
+      "name": "call",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        94,
+        147
+      ],
+      "summary": "POST endpoint calling a ticket to service. Validates loket role and counter assignment. Broadcasts QueueCalled event.",
+      "tags": [
+        "api-handler",
+        "authorization",
+        "broadcast"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:complete",
+      "type": "function",
+      "name": "complete",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        188,
+        237
+      ],
+      "summary": "POST endpoint marking ticket as completed with service duration tracking. Broadcasts QueueCompleted event.",
+      "tags": [
+        "api-handler",
+        "broadcast",
+        "timing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:skip",
+      "type": "function",
+      "name": "skip",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        239,
+        280
+      ],
+      "summary": "POST endpoint skipping a ticket. Logs audit trail and broadcasts QueueSkipped event.",
+      "tags": [
+        "api-handler",
+        "broadcast",
+        "audit"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:callNext",
+      "type": "function",
+      "name": "callNext",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        282,
+        330
+      ],
+      "summary": "POST endpoint finding and calling the next waiting ticket for a counter. Prioritizes counter-specific tickets.",
+      "tags": [
+        "api-handler",
+        "query",
+        "automation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/QueuesController.php:stats",
+      "type": "function",
+      "name": "stats",
+      "filePath": "backend/app/Http/Controllers/Api/QueuesController.php",
+      "lineRange": [
+        332,
+        348
+      ],
+      "summary": "GET endpoint returning today's queue statistics including counts by status and average wait time.",
+      "tags": [
+        "api-handler",
+        "statistics",
+        "aggregation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Models/Queue.php:call",
+      "type": "function",
+      "name": "call",
+      "filePath": "backend/app/Models/Queue.php",
+      "lineRange": [
+        77,
+        85
+      ],
+      "summary": "State transition method updating queue to called status with timestamp and user tracking.",
+      "tags": [
+        "state-transition",
+        "mutation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Models/Queue.php:complete",
+      "type": "function",
+      "name": "complete",
+      "filePath": "backend/app/Models/Queue.php",
+      "lineRange": [
+        87,
+        93
+      ],
+      "summary": "State transition method updating queue to completed status with completion timestamp.",
+      "tags": [
+        "state-transition",
+        "mutation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Models/Queue.php:skip",
+      "type": "function",
+      "name": "skip",
+      "filePath": "backend/app/Models/Queue.php",
+      "lineRange": [
+        95,
+        101
+      ],
+      "summary": "State transition method updating queue to skipped status with timestamp.",
+      "tags": [
+        "state-transition",
+        "mutation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Models/User.php",
+      "type": "file",
+      "name": "User.php",
+      "filePath": "backend/app/Models/User.php",
+      "summary": "Laravel Eloquent User model with role-based access control helpers and relationships to Counter, Queue, and AuditLog.",
+      "tags": [
+        "data-model",
+        "auth",
+        "laravel"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Laravel Eloquent model with HasFactory trait and Sanctum HasApiTokens for SPA authentication."
+    },
+    {
+      "id": "class:backend/app/Models/User.php:User",
+      "type": "class",
+      "name": "User",
+      "filePath": "backend/app/Models/User.php",
+      "lineRange": [
+        16,
+        75
+      ],
+      "summary": "Core user model with role-checking methods (isAdmin, isLoket, isSuper, hasRole) and relationships to counters, queues, and audit logs.",
+      "tags": [
+        "data-model",
+        "auth",
+        "laravel"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Models/Counter.php",
+      "type": "file",
+      "name": "Counter.php",
+      "filePath": "backend/app/Models/Counter.php",
+      "summary": "Eloquent model representing a service counter with users and queue relationships.",
+      "tags": [
+        "data-model",
+        "laravel"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:backend/app/Models/Counter.php:Counter",
+      "type": "class",
+      "name": "Counter",
+      "filePath": "backend/app/Models/Counter.php",
+      "lineRange": [
+        10,
+        50
+      ],
+      "summary": "Service counter model with many-to-many User relationship and has-many Queue relationship.",
+      "tags": [
+        "data-model",
+        "laravel"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Models/Display.php",
+      "type": "file",
+      "name": "Display.php",
+      "filePath": "backend/app/Models/Display.php",
+      "summary": "Eloquent model for TV display screens with video content relationships.",
+      "tags": [
+        "data-model",
+        "laravel"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Models/Display.php:Display",
+      "type": "class",
+      "name": "Display",
+      "filePath": "backend/app/Models/Display.php",
+      "lineRange": [
+        9,
+        39
+      ],
+      "summary": "Display screen model with has-many Video relationship and scope for active videos.",
+      "tags": [
+        "data-model",
+        "laravel"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Models/KioskStation.php",
+      "type": "file",
+      "name": "KioskStation.php",
+      "filePath": "backend/app/Models/KioskStation.php",
+      "summary": "Eloquent model for kiosk stations with printer profile relationship and heartbeat tracking.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "hardware"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:backend/app/Models/KioskStation.php:KioskStation",
+      "type": "class",
+      "name": "KioskStation",
+      "filePath": "backend/app/Models/KioskStation.php",
+      "lineRange": [
+        9,
+        52
+      ],
+      "summary": "Kiosk station model with printer profile, online/offline status, and heartbeat update method.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "hardware"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Models/PrinterProfile.php",
+      "type": "file",
+      "name": "PrinterProfile.php",
+      "filePath": "backend/app/Models/PrinterProfile.php",
+      "summary": "Eloquent model for thermal printer configurations supporting 58mm and 80mm widths.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "printer"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:backend/app/Models/PrinterProfile.php:PrinterProfile",
+      "type": "class",
+      "name": "PrinterProfile",
+      "filePath": "backend/app/Models/PrinterProfile.php",
+      "lineRange": [
+        9,
+        52
+      ],
+      "summary": "Printer profile with width detection methods (is58mm, is80mm, getWidth) and has-many KioskStations.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "printer"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Models/QueueLog.php",
+      "type": "file",
+      "name": "QueueLog.php",
+      "filePath": "backend/app/Models/QueueLog.php",
+      "summary": "Eloquent model for queue activity logging with timestamps.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "logging"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Models/QueueLog.php:QueueLog",
+      "type": "class",
+      "name": "QueueLog",
+      "filePath": "backend/app/Models/QueueLog.php",
+      "lineRange": [
+        9,
+        27
+      ],
+      "summary": "Minimal queue log model with belongs-to Queue relationship.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "logging"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Models/Video.php",
+      "type": "file",
+      "name": "Video.php",
+      "filePath": "backend/app/Models/Video.php",
+      "summary": "Eloquent model for video content associated with display screens.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "media"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Models/Video.php:Video",
+      "type": "class",
+      "name": "Video",
+      "filePath": "backend/app/Models/Video.php",
+      "lineRange": [
+        9,
+        44
+      ],
+      "summary": "Video model with belongs-to Display relationship and active status scope.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "media"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Models/AuditLog.php",
+      "type": "file",
+      "name": "AuditLog.php",
+      "filePath": "backend/app/Models/AuditLog.php",
+      "summary": "Eloquent model for application audit logging with static create method.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "audit",
+        "logging"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:backend/app/Models/AuditLog.php:AuditLog",
+      "type": "class",
+      "name": "AuditLog",
+      "filePath": "backend/app/Models/AuditLog.php",
+      "lineRange": [
+        9,
+        58
+      ],
+      "summary": "Audit log model with static log() method for recording user actions, model changes, and IP addresses.",
+      "tags": [
+        "data-model",
+        "laravel",
+        "audit",
+        "logging"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "type": "file",
+      "name": "CountersController.php",
+      "filePath": "backend/app/Http/Controllers/Api/CountersController.php",
+      "summary": "API controller for service counter management with CRUD operations and user assignment capabilities.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "counter-management",
+        "user-assignment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "type": "file",
+      "name": "DisplaysController.php",
+      "filePath": "backend/app/Http/Controllers/Api/DisplaysController.php",
+      "summary": "API controller for TV display management with volume broadcast events and sync operations.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "display-management",
+        "realtime-events"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/UsersController.php",
+      "type": "file",
+      "name": "UsersController.php",
+      "filePath": "backend/app/Http/Controllers/Api/UsersController.php",
+      "summary": "API controller for user account management with full CRUD operations for admin users.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "user-management",
+        "admin-only"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "type": "file",
+      "name": "KioskStationsController.php",
+      "filePath": "backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "summary": "API controller for kiosk station management with token regeneration and heartbeat monitoring.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "kiosk-management",
+        "token-auth"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/PrinterProfilesController.php",
+      "type": "file",
+      "name": "PrinterProfilesController.php",
+      "filePath": "backend/app/Http/Controllers/Api/PrinterProfilesController.php",
+      "summary": "API controller for printer profile configuration with CRUD operations for thermal printer settings.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "printer-config",
+        "hardware-integration"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/AuthController.php",
+      "type": "file",
+      "name": "AuthController.php",
+      "filePath": "backend/app/Http/Controllers/Api/AuthController.php",
+      "summary": "API controller for authentication handling login, logout, user info, and token refresh endpoints.",
+      "tags": [
+        "api-handler",
+        "authentication",
+        "sanctum",
+        "session-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "type": "file",
+      "name": "AuditLogsController.php",
+      "filePath": "backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "summary": "API controller for audit log retrieval with filtering, pagination, and export capabilities.",
+      "tags": [
+        "api-handler",
+        "audit-trail",
+        "read-only",
+        "admin-only"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "type": "file",
+      "name": "VideosController.php",
+      "filePath": "backend/app/Http/Controllers/Api/VideosController.php",
+      "summary": "API controller for video file management with upload, CRUD operations, and playlist reordering.",
+      "tags": [
+        "api-handler",
+        "crud",
+        "file-upload",
+        "media-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/CountersController.php:syncUsers",
+      "type": "function",
+      "name": "syncUsers",
+      "filePath": "backend/app/Http/Controllers/Api/CountersController.php",
+      "lineRange": [
+        100,
+        140
+      ],
+      "summary": "Bulk syncs multiple user assignments to a counter, replacing existing assignments.",
+      "tags": [
+        "bulk-operation",
+        "user-assignment",
+        "sync"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/DisplaysController.php:updateVolume",
+      "type": "function",
+      "name": "updateVolume",
+      "filePath": "backend/app/Http/Controllers/Api/DisplaysController.php",
+      "lineRange": [
+        120,
+        145
+      ],
+      "summary": "Updates display volume and broadcasts VolumeUpdate event to connected clients.",
+      "tags": [
+        "realtime-events",
+        "volume-control",
+        "websocket"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:regenerateToken",
+      "type": "function",
+      "name": "regenerateToken",
+      "filePath": "backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "lineRange": [
+        85,
+        105
+      ],
+      "summary": "Regenerates API authentication token for a kiosk station.",
+      "tags": [
+        "token-auth",
+        "security",
+        "kiosk-management"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:heartbeat",
+      "type": "function",
+      "name": "heartbeat",
+      "filePath": "backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "lineRange": [
+        107,
+        125
+      ],
+      "summary": "Updates kiosk station last seen timestamp for health monitoring.",
+      "tags": [
+        "health-check",
+        "monitoring",
+        "heartbeat"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/AuthController.php:login",
+      "type": "function",
+      "name": "login",
+      "filePath": "backend/app/Http/Controllers/Api/AuthController.php",
+      "lineRange": [
+        18,
+        45
+      ],
+      "summary": "Authenticates user credentials and returns sanctum token with user data.",
+      "tags": [
+        "authentication",
+        "sanctum",
+        "session"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/AuditLogsController.php:export",
+      "type": "function",
+      "name": "export",
+      "filePath": "backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "lineRange": [
+        70,
+        100
+      ],
+      "summary": "Exports filtered audit logs as CSV file for offline analysis.",
+      "tags": [
+        "export",
+        "csv",
+        "admin-only"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/app/Http/Controllers/Api/VideosController.php:reorder",
+      "type": "function",
+      "name": "reorder",
+      "filePath": "backend/app/Http/Controllers/Api/VideosController.php",
+      "lineRange": [
+        120,
+        155
+      ],
+      "summary": "Updates video display order based on provided sequence array.",
+      "tags": [
+        "playlist-management",
+        "ordering",
+        "bulk-update"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Http/Middleware/CheckRole.php",
+      "type": "file",
+      "name": "CheckRole.php",
+      "filePath": "backend/app/Http/Middleware/CheckRole.php",
+      "summary": "Laravel middleware that enforces role-based access control by checking if the authenticated user has one of the required roles (admin, super, or loket).",
+      "tags": [
+        "middleware",
+        "authentication",
+        "authorization",
+        "security"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Laravel HTTP middleware using $request->user() and in_array() for role validation."
+    },
+    {
+      "id": "file:backend/app/Http/Middleware/AssignCounter.php",
+      "type": "file",
+      "name": "AssignCounter.php",
+      "filePath": "backend/app/Http/Middleware/AssignCounter.php",
+      "summary": "Laravel middleware that automatically assigns a counter to loket users based on their role. Admin and super users bypass counter assignment; loket users must have at least one assigned counter.",
+      "tags": [
+        "middleware",
+        "authorization",
+        "counter-management"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Middleware checks user role via $user->isAdmin(), $user->isSuper(), $user->isLoket() and accesses assignedCounters() relationship."
+    },
+    {
+      "id": "file:backend/app/Http/Middleware/Authenticate.php",
+      "type": "file",
+      "name": "Authenticate.php",
+      "filePath": "backend/app/Http/Middleware/Authenticate.php",
+      "summary": "Laravel authentication middleware that determines where to redirect unauthenticated users. Returns JSON for API requests or redirects to login for web requests.",
+      "tags": [
+        "middleware",
+        "authentication",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Http/Requests/StoreQueueRequest.php",
+      "type": "file",
+      "name": "StoreQueueRequest.php",
+      "filePath": "backend/app/Http/Requests/StoreQueueRequest.php",
+      "summary": "Laravel Form Request that validates incoming queue creation requests with rules for counter_id, priority, and service_type fields with Indonesian error messages.",
+      "tags": [
+        "form-request",
+        "validation",
+        "api-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/bootstrap/app.php",
+      "type": "file",
+      "name": "app.php",
+      "filePath": "backend/bootstrap/app.php",
+      "summary": "Laravel bootstrap file that configures middleware aliases for AssignCounter and CheckRole middleware, making them available in route definitions.",
+      "tags": [
+        "bootstrap",
+        "middleware",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/bootstrap/providers.php",
+      "type": "file",
+      "name": "providers.php",
+      "filePath": "backend/bootstrap/providers.php",
+      "summary": "Laravel providers configuration file that registers application service providers including AppServiceProvider.",
+      "tags": [
+        "bootstrap",
+        "providers",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "file",
+      "name": "Controller.php",
+      "filePath": "backend/app/Http/Controllers/Controller.php",
+      "summary": "Base Laravel controller class that all other API controllers extend, providing common functionality and inheritance structure.",
+      "tags": [
+        "controller",
+        "base-class",
+        "api-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/config/broadcasting.php",
+      "type": "config",
+      "name": "broadcasting.php",
+      "filePath": "backend/config/broadcasting.php",
+      "summary": "Laravel broadcasting configuration file that defines the broadcasting driver and connection settings for real-time WebSocket events via Laravel Reverb.",
+      "tags": [
+        "configuration",
+        "broadcasting",
+        "websocket",
+        "reverb"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses Laravel broadcasting with Reverb driver for real-time event broadcasting."
+    },
+    {
+      "id": "file:backend/config/auth.php",
+      "type": "config",
+      "name": "auth.php",
+      "filePath": "backend/config/auth.php",
+      "summary": "Laravel authentication configuration defining guards (API with Sanctum) and providers for User model with database user provider.",
+      "tags": [
+        "configuration",
+        "authentication",
+        "security",
+        "sanctum"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Configures Sanctum API guard with session/web guards for traditional auth."
+    },
+    {
+      "id": "class:backend/app/Http/Middleware/CheckRole.php:CheckRole",
+      "type": "class",
+      "name": "CheckRole",
+      "filePath": "backend/app/Http/Middleware/CheckRole.php",
+      "lineRange": [
+        9,
+        25
+      ],
+      "summary": "Middleware class that validates user roles against allowed roles array, returning 403 Forbidden if user lacks required role.",
+      "tags": [
+        "middleware",
+        "authorization",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Http/Middleware/CheckRole.php:handle",
+      "type": "function",
+      "name": "handle",
+      "filePath": "backend/app/Http/Middleware/CheckRole.php",
+      "lineRange": [
+        11,
+        24
+      ],
+      "summary": "Handles the request by checking if authenticated user has one of the allowed roles from the role parameter.",
+      "tags": [
+        "middleware",
+        "authorization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Http/Middleware/AssignCounter.php:AssignCounter",
+      "type": "class",
+      "name": "AssignCounter",
+      "filePath": "backend/app/Http/Middleware/AssignCounter.php",
+      "lineRange": [
+        9,
+        35
+      ],
+      "summary": "Middleware class that auto-assigns counter sessions to loket users by checking role and assignedCounters relationship.",
+      "tags": [
+        "middleware",
+        "authorization",
+        "counter-management"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/app/Http/Middleware/AssignCounter.php:handle",
+      "type": "function",
+      "name": "handle",
+      "filePath": "backend/app/Http/Middleware/AssignCounter.php",
+      "lineRange": [
+        11,
+        34
+      ],
+      "summary": "Handles request by checking user role - admin/super bypass, loket users must have assigned counters.",
+      "tags": [
+        "middleware",
+        "authorization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/app/Http/Requests/StoreQueueRequest.php:StoreQueueRequest",
+      "type": "class",
+      "name": "StoreQueueRequest",
+      "filePath": "backend/app/Http/Requests/StoreQueueRequest.php",
+      "lineRange": [
+        7,
+        32
+      ],
+      "summary": "Form request class for validating queue creation data with rules for counter_id, priority, and service_type fields.",
+      "tags": [
+        "form-request",
+        "validation"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:backend/app/Events/QueueCalled.php",
+      "target": "class:backend/app/Events/QueueCalled.php:QueueCalled",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Events/QueueCalled.php",
+      "target": "file:backend/app/Models/Queue.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Events/QueueCompleted.php",
+      "target": "class:backend/app/Events/QueueCompleted.php:QueueCompleted",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Events/QueueCompleted.php",
+      "target": "file:backend/app/Models/Queue.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Events/QueueCreated.php",
+      "target": "class:backend/app/Events/QueueCreated.php:QueueCreated",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Events/QueueCreated.php",
+      "target": "file:backend/app/Models/Queue.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Events/QueueSkipped.php",
+      "target": "class:backend/app/Events/QueueSkipped.php:QueueSkipped",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Events/QueueSkipped.php",
+      "target": "file:backend/app/Models/Queue.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Events/VolumeUpdate.php",
+      "target": "class:backend/app/Events/VolumeUpdate.php:VolumeUpdate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "class:backend/app/Http/Controllers/Api/QueuesController.php:QueuesController",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "file:backend/app/Models/Queue.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:index",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:store",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:call",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:complete",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:skip",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:callNext",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:stats",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "target": "function:backend/app/Http/Controllers/Api/QueuesController.php:store",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/Queue.php",
+      "target": "class:backend/app/Models/Queue.php:Queue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Models/Queue.php",
+      "target": "function:backend/app/Models/Queue.php:call",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Models/Queue.php",
+      "target": "function:backend/app/Models/Queue.php:complete",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Models/Queue.php",
+      "target": "function:backend/app/Models/Queue.php:skip",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/routes/api.php",
+      "target": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/routes/api.php",
+      "target": "file:backend/app/Http/Controllers/Api/QueuesController.php",
+      "type": "routes",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:backend/app/Models/User.php",
+      "target": "class:backend/app/Models/User.php:User",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/User.php:User",
+      "target": "file:backend/app/Models/User.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/Counter.php",
+      "target": "class:backend/app/Models/Counter.php:Counter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/Counter.php:Counter",
+      "target": "file:backend/app/Models/Counter.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/Display.php",
+      "target": "class:backend/app/Models/Display.php:Display",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/Display.php:Display",
+      "target": "file:backend/app/Models/Display.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/KioskStation.php",
+      "target": "class:backend/app/Models/KioskStation.php:KioskStation",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/KioskStation.php:KioskStation",
+      "target": "file:backend/app/Models/KioskStation.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/PrinterProfile.php",
+      "target": "class:backend/app/Models/PrinterProfile.php:PrinterProfile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/PrinterProfile.php:PrinterProfile",
+      "target": "file:backend/app/Models/PrinterProfile.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/QueueLog.php",
+      "target": "class:backend/app/Models/QueueLog.php:QueueLog",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/QueueLog.php:QueueLog",
+      "target": "file:backend/app/Models/QueueLog.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/Video.php",
+      "target": "class:backend/app/Models/Video.php:Video",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/Video.php:Video",
+      "target": "file:backend/app/Models/Video.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/AuditLog.php",
+      "target": "class:backend/app/Models/AuditLog.php:AuditLog",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Models/AuditLog.php:AuditLog",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Models/User.php",
+      "target": "file:backend/app/Models/Counter.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Models/KioskStation.php",
+      "target": "file:backend/app/Models/PrinterProfile.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Models/Display.php",
+      "target": "file:backend/app/Models/Video.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "target": "file:backend/app/Models/Counter.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "file:backend/app/Events/VolumeUpdate.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "file:backend/app/Models/Display.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/UsersController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/UsersController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/UsersController.php",
+      "target": "file:backend/app/Models/User.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "file:backend/app/Models/KioskStation.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/PrinterProfilesController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/PrinterProfilesController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/PrinterProfilesController.php",
+      "target": "file:backend/app/Models/PrinterProfile.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuthController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuthController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "target": "file:backend/app/Models/AuditLog.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "target": "file:backend/app/Models/Video.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "target": "function:backend/app/Http/Controllers/Api/CountersController.php:syncUsers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/CountersController.php",
+      "target": "function:backend/app/Http/Controllers/Api/CountersController.php:syncUsers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "function:backend/app/Http/Controllers/Api/DisplaysController.php:updateVolume",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/DisplaysController.php",
+      "target": "function:backend/app/Http/Controllers/Api/DisplaysController.php:updateVolume",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:regenerateToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:regenerateToken",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:heartbeat",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/KioskStationsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/KioskStationsController.php:heartbeat",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuthController.php",
+      "target": "function:backend/app/Http/Controllers/Api/AuthController.php:login",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuthController.php",
+      "target": "function:backend/app/Http/Controllers/Api/AuthController.php:login",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/AuditLogsController.php:export",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/AuditLogsController.php",
+      "target": "function:backend/app/Http/Controllers/Api/AuditLogsController.php:export",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "target": "function:backend/app/Http/Controllers/Api/VideosController.php:reorder",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Controllers/Api/VideosController.php",
+      "target": "function:backend/app/Http/Controllers/Api/VideosController.php:reorder",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:backend/app/Http/Controllers/Api/DisplaysController.php:updateVolume",
+      "target": "file:backend/app/Events/VolumeUpdate.php",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/CheckRole.php",
+      "target": "class:backend/app/Http/Middleware/CheckRole.php:CheckRole",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Http/Middleware/CheckRole.php:CheckRole",
+      "target": "function:backend/app/Http/Middleware/CheckRole.php:handle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/CheckRole.php",
+      "target": "function:backend/app/Http/Middleware/CheckRole.php:handle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/CheckRole.php",
+      "target": "class:backend/app/Http/Middleware/CheckRole.php:CheckRole",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/AssignCounter.php",
+      "target": "class:backend/app/Http/Middleware/AssignCounter.php:AssignCounter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "class:backend/app/Http/Middleware/AssignCounter.php:AssignCounter",
+      "target": "function:backend/app/Http/Middleware/AssignCounter.php:handle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/AssignCounter.php",
+      "target": "function:backend/app/Http/Middleware/AssignCounter.php:handle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/AssignCounter.php",
+      "target": "class:backend/app/Http/Middleware/AssignCounter.php:AssignCounter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/app/Http/Middleware/Authenticate.php",
+      "target": "file:backend/app/Http/Controllers/Controller.php",
+      "type": "inherits",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:backend/app/Http/Requests/StoreQueueRequest.php",
+      "target": "class:backend/app/Http/Requests/StoreQueueRequest.php:StoreQueueRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/app/Http/Requests/StoreQueueRequest.php",
+      "target": "class:backend/app/Http/Requests/StoreQueueRequest.php:StoreQueueRequest",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/bootstrap/app.php",
+      "target": "file:backend/app/Http/Middleware/CheckRole.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/bootstrap/app.php",
+      "target": "file:backend/app/Http/Middleware/AssignCounter.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/bootstrap/providers.php",
+      "target": "file:backend/bootstrap/providers.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/config/auth.php",
+      "target": "file:backend/config/auth.php",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:backend-api",
+      "name": "Backend API",
+      "description": "Laravel API controllers and routes",
+      "nodeIds": [
+        "file:backend/app/Http/Controllers/Api/QueuesController.php",
+        "file:backend/routes/api.php"
+      ]
+    },
+    {
+      "id": "layer:backend-models",
+      "name": "Backend Models",
+      "description": "Eloquent ORM models",
+      "nodeIds": [
+        "file:backend/app/Models/Queue.php",
+        "file:backend/app/Models/User.php",
+        "file:backend/app/Models/Counter.php"
+      ]
+    },
+    {
+      "id": "layer:backend-events",
+      "name": "Broadcasting Events",
+      "description": "Laravel Reverb broadcast events",
+      "nodeIds": [
+        "file:backend/app/Events/QueueCalled.php",
+        "file:backend/app/Events/QueueCreated.php"
+      ]
+    },
+    {
+      "id": "layer:middleware",
+      "name": "Middleware",
+      "description": "Auth and role middleware",
+      "nodeIds": [
+        "file:backend/app/Http/Middleware/CheckRole.php"
+      ]
+    },
+    {
+      "id": "layer:docs",
+      "name": "Documentation",
+      "description": "Project docs",
+      "nodeIds": [
+        "document:CLAUDE.md"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview",
+      "description": "Antrian queue management system with Laravel backend and Next.js frontend",
+      "nodeIds": [
+        "document:CLAUDE.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Core Queue Model",
+      "description": "Queue state transitions and relationships",
+      "nodeIds": [
+        "file:backend/app/Models/Queue.php"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Real-time Events",
+      "description": "WebSocket broadcast events",
+      "nodeIds": [
+        "file:backend/app/Events/QueueCalled.php"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "API Controllers",
+      "description": "REST API endpoints",
+      "nodeIds": [
+        "file:backend/routes/api.php"
+      ]
+    }
+  ]
+}
