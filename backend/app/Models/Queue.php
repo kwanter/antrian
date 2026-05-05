@@ -96,6 +96,7 @@ class Queue extends Model
     {
         $this->update([
             'status' => 'skipped',
+            'completed_at' => now(),
         ]);
     }
 }

@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Public routes
+// Public routes - no authentication required
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/auth/login', [AuthController::class, 'login']);
@@ -26,8 +26,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/queues', [QueuesController::class, 'store']);
     Route::get('/queues/stats', [QueuesController::class, 'stats']);
 
-    // Public display sync
+    // Display page routes — public for display monitors
+    Route::get('/displays', [DisplaysController::class, 'index']);
     Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);
+    Route::get('/videos', [VideosController::class, 'index']);
+    Route::get('/queues', [QueuesController::class, 'index']);
 });
 
 // Protected routes (requires Sanctum authentication)
@@ -38,9 +41,9 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 
     // Queues
-    Route::get('/queues', [QueuesController::class, 'index']);
     Route::get('/queues/{queue}', [QueuesController::class, 'show']);
     Route::post('/queues/{queue}/call', [QueuesController::class, 'call']);
+    Route::post('/queues/{queue}/recall', [QueuesController::class, 'recall']);
     Route::post('/queues/{queue}/complete', [QueuesController::class, 'complete']);
     Route::post('/queues/{queue}/skip', [QueuesController::class, 'skip']);
 
@@ -64,17 +67,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::put('/users/{user}', [UsersController::class, 'update']);
     Route::delete('/users/{user}', [UsersController::class, 'destroy']);
 
-    // Displays
-    Route::get('/displays', [DisplaysController::class, 'index']);
+    // Displays — admin only (except index and sync which are public)
     Route::post('/displays', [DisplaysController::class, 'store']);
     Route::get('/displays/{display}', [DisplaysController::class, 'show']);
     Route::put('/displays/{display}', [DisplaysController::class, 'update']);
     Route::delete('/displays/{display}', [DisplaysController::class, 'destroy']);
-    Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);
     Route::post('/displays/{display}/volume', [DisplaysController::class, 'updateVolume']);
 
-    // Videos
-    Route::get('/videos', [VideosController::class, 'index']);
+    // Videos — admin only (except index which is public)
     Route::post('/videos', [VideosController::class, 'store']);
     Route::get('/videos/{video}', [VideosController::class, 'show']);
     Route::put('/videos/{video}', [VideosController::class, 'update']);

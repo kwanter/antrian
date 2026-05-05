@@ -9,6 +9,7 @@ use App\Models\Queue;
 use App\Models\QueueLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class QueuesController extends Controller
 {
@@ -133,7 +134,11 @@ class QueuesController extends Controller
         );
 
         // Broadcast event
-        broadcast(new \App\Events\QueueCalled($queue));
+        try {
+            broadcast(new \App\Events\QueueCalled($queue));
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $queue->load('counter'),
@@ -141,43 +146,94 @@ class QueuesController extends Controller
         ]);
     }
 
-    public function complete(Request $request, Queue $queue): JsonResponse
+    public function recall(Request $request, Queue $queue): JsonResponse
     {
         $user = $request->user();
+        $counterId = $user->counter_id ?? $queue->counter_id;
 
-        if (!$queue->isCalled() && !$queue->isServing()) {
-            return response()->json([
-                'message' => 'Queue is not in called or serving status',
-            ], 400);
-        }
-
-        $queue->complete();
+        // Always allow re-calling - update to called status
+        $queue->call($user->name, $counterId);
 
         // Log the action
         QueueLog::create([
             'queue_id' => $queue->id,
-            'action' => 'completed',
+            'action' => 'recalled',
             'performed_by' => $user->name,
-            'metadata' => ['duration_seconds' => $queue->called_at ? now()->diffInSeconds($queue->called_at) : null],
+            'metadata' => ['counter_id' => $counterId],
         ]);
 
         // Audit log
         AuditLog::log(
-            action: 'complete',
+            action: 'recall',
             model: 'Queue',
             modelId: $queue->id,
-            changes: ['status' => ['from' => $queue->getOriginal('status'), 'to' => 'completed']],
+            changes: ['status' => ['from' => $queue->getOriginal('status'), 'to' => 'called']],
             ipAddress: $request->ip(),
             userId: $user->id
         );
 
         // Broadcast event
-        broadcast(new \App\Events\QueueCompleted($queue));
+        try {
+            broadcast(new \App\Events\QueueCalled($queue));
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $queue->load('counter'),
-            'message' => 'Queue completed successfully',
+            'message' => 'Queue recalled successfully',
         ]);
+    }
+
+    public function complete(Request $request, Queue $queue): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!$queue->isCalled() && !$queue->isServing()) {
+                return response()->json([
+                    'message' => 'Queue is not in called or serving status',
+                ], 400);
+            }
+
+            $queue->complete();
+
+            QueueLog::create([
+                'queue_id' => $queue->id,
+                'action' => 'completed',
+                'performed_by' => $user->name,
+                'metadata' => ['duration_seconds' => $queue->called_at ? now()->diffInSeconds($queue->called_at) : null],
+            ]);
+
+            AuditLog::log(
+                action: 'complete',
+                model: 'Queue',
+                modelId: $queue->id,
+                changes: ['status' => ['from' => $queue->getOriginal('status'), 'to' => 'completed']],
+                ipAddress: $request->ip(),
+                userId: $user->id
+            );
+
+            try {
+                broadcast(new \App\Events\QueueCompleted($queue));
+            } catch (\Throwable $e) {
+                \Log::warning('Broadcast failed: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'data' => $queue->load('counter'),
+                'message' => 'Queue completed successfully',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Complete queue failed', [
+                'queue_id' => $queue->id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => 'Failed to complete queue: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function skip(Request $request, Queue $queue): JsonResponse
@@ -211,7 +267,11 @@ class QueuesController extends Controller
         );
 
         // Broadcast event
-        broadcast(new \App\Events\QueueSkipped($queue));
+        try {
+            broadcast(new \App\Events\QueueSkipped($queue));
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $queue->load('counter'),
@@ -257,7 +317,11 @@ class QueuesController extends Controller
         );
 
         // Broadcast event
-        broadcast(new \App\Events\QueueCalled($queue));
+        try {
+            broadcast(new \App\Events\QueueCalled($queue));
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $queue->load('counter'),

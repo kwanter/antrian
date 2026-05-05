@@ -5,12 +5,11 @@ namespace App\Events;
 use App\Models\Queue;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class QueueSkipped implements ShouldBroadcast
+class QueueSkipped implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -21,8 +20,8 @@ class QueueSkipped implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('queue-updates'),
-            new PrivateChannel('display-sync'),
+            new Channel('queue-updates'),
+            new Channel('display-sync'),
         ];
     }
 
@@ -39,6 +38,7 @@ class QueueSkipped implements ShouldBroadcast
                 'ticket_number' => $this->queue->ticket_number,
                 'status' => $this->queue->status,
             ],
+            'previous_status' => $this->queue->getOriginal('status'),
         ];
     }
 }

@@ -5,12 +5,11 @@ namespace App\Events;
 use App\Models\Queue;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class QueueCalled implements ShouldBroadcast
+class QueueCalled implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -21,9 +20,9 @@ class QueueCalled implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('queue-updates'),
-            new PrivateChannel('loket.' . $this->queue->counter_id),
-            new PrivateChannel('display-sync'),
+            new Channel('queue-updates'),
+            new Channel('loket.' . $this->queue->counter_id),
+            new Channel('display-sync'),
         ];
     }
 
@@ -46,6 +45,7 @@ class QueueCalled implements ShouldBroadcast
                 ] : null,
                 'called_at' => $this->queue->called_at?->toISOString(),
             ],
+            'previous_status' => $this->queue->getOriginal('status'),
         ];
     }
 }
