@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Counter;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -160,6 +161,11 @@ class CountersController extends Controller
         ]);
 
         $counter->users()->sync(array_keys(array_flip($request->user_ids)));
+
+        User::whereIn('id', $request->user_ids)->update(['counter_id' => $counter->id]);
+        User::whereNotIn('id', $request->user_ids)
+            ->where('counter_id', $counter->id)
+            ->update(['counter_id' => null]);
 
         AuditLog::log(
             action: 'sync_users',

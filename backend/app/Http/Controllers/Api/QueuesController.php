@@ -16,11 +16,43 @@ class QueuesController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = Queue::with('counter')->latest();
+
+        // Enforce scope for loket users: only their assigned counter's queues
+        if ($user && ($user->isLoket())) {
+            $scopedCounterId = $user->counter_id;
+            $scopedLayananId = null;
+
+            if ($scopedCounterId) {
+                $counter = \App\Models\Counter::find($scopedCounterId);
+                $scopedLayananId = $counter?->layanan_id;
+            }
+
+            if ($scopedLayananId) {
+                $query->where('layanan_id', $scopedLayananId);
+            } elseif ($scopedCounterId) {
+                $query->where(function ($q) use ($scopedCounterId) {
+                    $q->where('counter_id', $scopedCounterId)
+                      ->orWhereNull('counter_id');
+                });
+            } else {
+                $query->where(function ($q) use ($user) {
+                    $assignedIds = $user->assignedCounters()->pluck('counter_id');
+                    if ($assignedIds->isNotEmpty()) {
+                        $q->whereIn('counter_id', $assignedIds)
+                          ->orWhereNull('counter_id');
+                    } else {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+            }
+        }
 
         // Filter by status
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $statuses = array_filter(explode(',', (string) $request->status));
+            $query->whereIn('status', $statuses);
         }
 
         // Filter by service_type
@@ -131,6 +163,12 @@ class QueuesController extends Controller
             ], 400);
         }
 
+        if (!$queue->created_at->isToday()) {
+            return response()->json([
+                'message' => 'Queue is not from today',
+            ], 422);
+        }
+
         $counterId = $user->counter_id ?? $request->counter_id;
 
         $queue->call($user->name, $counterId);
@@ -176,9 +214,20 @@ class QueuesController extends Controller
             ], 403);
         }
 
+        if (!$queue->created_at->isToday()) {
+            return response()->json([
+                'message' => 'Queue is not from today',
+            ], 422);
+        }
+
+        if (!$queue->isCalled() && !$queue->isServing()) {
+            return response()->json([
+                'message' => 'Queue is not in called or serving status',
+            ], 400);
+        }
+
         $counterId = $user->counter_id ?? $queue->counter_id;
 
-        // Always allow re-calling - update to called status
         $queue->call($user->name, $counterId);
 
         // Log the action
@@ -338,11 +387,11 @@ class QueuesController extends Controller
         }
 
         // Build query: only waiting queues
-        $query = Queue::where('status', 'waiting');
+        $query = Queue::where('status', 'waiting')
+            ->whereDate('created_at', today());
 
-        if ($counter->layanan) {
-            // Counter has layanan → only call queues for that layanan
-            $query->where('layanan_id', $counter->layanan->id);
+        if ($counter->layanan_id) {
+            $query->where('layanan_id', $counter->layanan_id);
         } else {
             // Counter has no layanan → call queues for this counter or unassigned
             $query->where(fn($q) => $q
@@ -452,12 +501,12 @@ class QueuesController extends Controller
 
     protected function canOperateOnCounter(User $user, ?int $counterId): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isSuper()) {
             return true;
         }
 
         if (!$user->isLoket()) {
-            return true;
+            return false;
         }
 
         if ($counterId === null) {

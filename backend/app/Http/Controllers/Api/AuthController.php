@@ -88,7 +88,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'data' => $request->user()->load('counter', 'assignedCounters'),
+            'data' => $request->user()->load('counter.layanan', 'assignedCounters'),
         ]);
     }
 

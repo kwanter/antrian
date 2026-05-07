@@ -107,15 +107,17 @@ class DisplaysController extends Controller
 
     public function sync(Display $display): JsonResponse
     {
-        // Return current queue state for display sync
         $currentQueue = \App\Models\Queue::whereIn('status', ['called', 'serving'])
             ->where('counter_id', $display->settings['counter_id'] ?? null)
+            ->whereDate('created_at', today())
             ->orderBy('called_at', 'desc')
             ->first();
 
-        $recentQueues = \App\Models\Queue::whereIn('status', ['waiting', 'called'])
+        $recentQueues = \App\Models\Queue::where('status', 'called')
+            ->where('counter_id', $display->settings['counter_id'] ?? null)
             ->whereDate('created_at', today())
-            ->orderBy('created_at', 'desc')
+            ->when($currentQueue, fn($query) => $query->where('id', '!=', $currentQueue->id))
+            ->orderBy('called_at', 'desc')
             ->limit(10)
             ->get();
 

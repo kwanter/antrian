@@ -113,10 +113,21 @@ class LayananController extends Controller
         ]);
     }
 
-    public function queues(Layanan $layanan): JsonResponse
+    public function queues(Request $request, Layanan $layanan): JsonResponse
     {
-        $queues = $layanan->queues()
-            ->with(['counter', 'calledByUser'])
+        $query = $layanan->queues()
+            ->with(['counter', 'calledByUser']);
+
+        if ($request->filled('status')) {
+            $statuses = array_filter(explode(',', (string) $request->query('status')));
+            $query->whereIn('status', $statuses);
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->query('date'));
+        }
+
+        $queues = $query
             ->orderBy('created_at', 'desc')
             ->paginate(50);
 
