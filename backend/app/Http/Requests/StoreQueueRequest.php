@@ -14,7 +14,8 @@ class StoreQueueRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'service_type' => 'required|string|max:100',
+            'layanan_id' => 'nullable|integer|exists:layanans,id',
+            'service_type' => 'required_without:layanan_id|string|max:100',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:20',
         ];
@@ -23,7 +24,8 @@ class StoreQueueRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'service_type.required' => 'Jenis layanan wajib dipilih',
+            'layanan_id.exists' => 'Layanan tidak valid',
+            'service_type.required_without' => 'Jenis layanan wajib dipilih',
             'service_type.max' => 'Jenis layanan maksimal 100 karakter',
             'customer_name.max' => 'Nama maksimal 255 karakter',
             'customer_phone.max' => 'Nomor telepon maksimal 20 karakter',

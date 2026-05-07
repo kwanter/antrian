@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Counter extends Model
 {
@@ -21,6 +22,14 @@ class Counter extends Model
     }
 
     // Relationships
+
+    // Primary layanan link: Counter has one primary layanan via reverse of layanans.counter_id
+    public function layanan(): HasOne
+    {
+        return $this->hasOne(Layanan::class);
+    }
+
+    // Primary petugas assignment via counter_user pivot (many-to-many)
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'counter_user')

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreQueueRequest;
 use App\Models\AuditLog;
 use App\Models\Queue;
 use App\Models\QueueLog;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -40,6 +41,11 @@ class QueuesController extends Controller
             $query->where('counter_id', $request->counter_id);
         }
 
+        // Filter by layanan
+        if ($request->has('layanan_id')) {
+            $query->where('layanan_id', $request->layanan_id);
+        }
+
         $perPage = $request->get('per_page', 15);
         $queues = $query->paginate($perPage);
 
@@ -56,30 +62,44 @@ class QueuesController extends Controller
 
     public function store(StoreQueueRequest $request): JsonResponse
     {
-        // Generate ticket number
-        $ticketNumber = $this->generateTicketNumber();
+        $ticketNumber = $this->generateTicketNumber($request->layanan_id);
+
+        $serviceType = $request->service_type;
+        $counterId = null;
+
+        if ($request->filled('layanan_id')) {
+            $layanan = \App\Models\Layanan::with('counter')->find($request->layanan_id);
+            if ($layanan && $layanan->counter) {
+                $counterId = $layanan->counter->id;
+                $serviceType = $serviceType ?? $layanan->name;
+            }
+        }
 
         $queue = Queue::create([
             'ticket_number' => $ticketNumber,
-            'service_type' => $request->service_type,
+            'service_type' => $serviceType,
+            'layanan_id' => $request->layanan_id,
+            'counter_id' => $counterId,
             'customer_name' => $request->customer_name,
             'customer_phone' => $request->customer_phone,
             'status' => 'waiting',
         ]);
 
-        // Log the action
         QueueLog::create([
             'queue_id' => $queue->id,
             'action' => 'created',
             'performed_by' => 'kiosk',
-            'metadata' => ['service_type' => $queue->service_type],
+            'metadata' => ['service_type' => $queue->service_type, 'layanan_id' => $queue->layanan_id],
         ]);
 
-        // Broadcast event
-        broadcast(new \App\Events\QueueCreated($queue));
+        try {
+            broadcast(new \App\Events\QueueCreated($queue));
+        } catch (\Throwable $e) {
+            \Log::warning('Broadcast failed: ' . $e->getMessage());
+        }
 
         return response()->json([
-            'data' => $queue->load('counter'),
+            'data' => $queue->load('counter', 'layanan'),
             'message' => 'Queue ticket created successfully',
         ], 201);
     }
@@ -149,6 +169,13 @@ class QueuesController extends Controller
     public function recall(Request $request, Queue $queue): JsonResponse
     {
         $user = $request->user();
+
+        if (!$this->canOperateOnCounter($user, $queue->counter_id)) {
+            return response()->json([
+                'message' => 'You are not authorized to recall this queue',
+            ], 403);
+        }
+
         $counterId = $user->counter_id ?? $queue->counter_id;
 
         // Always allow re-calling - update to called status
@@ -189,6 +216,12 @@ class QueuesController extends Controller
     {
         try {
             $user = $request->user();
+
+            if (!$this->canOperateOnCounter($user, $queue->counter_id)) {
+                return response()->json([
+                    'message' => 'You are not authorized to complete this queue',
+                ], 403);
+            }
 
             if (!$queue->isCalled() && !$queue->isServing()) {
                 return response()->json([
@@ -240,6 +273,12 @@ class QueuesController extends Controller
     {
         $user = $request->user();
 
+        if (!$this->canOperateOnCounter($user, $queue->counter_id)) {
+            return response()->json([
+                'message' => 'You are not authorized to skip this queue',
+            ], 403);
+        }
+
         if (!$queue->isWaiting() && !$queue->isCalled()) {
             return response()->json([
                 'message' => 'Queue cannot be skipped in current status',
@@ -282,13 +321,37 @@ class QueuesController extends Controller
     public function callNext(Request $request, $counterId): JsonResponse
     {
         $user = $request->user();
+        $counterId = (int) $counterId;
 
-        // Find next waiting queue
-        $queue = Queue::where('status', 'waiting')
-            ->whereHas('counter', fn($q) => $q->where('id', $counterId))
-            ->orWhereDoesntHave('counter')
-            ->orderBy('created_at')
-            ->first();
+        if (!$this->canOperateOnCounter($user, $counterId)) {
+            return response()->json([
+                'message' => 'You are not authorized to call queues for this counter',
+            ], 403);
+        }
+
+        $counter = \App\Models\Counter::with('layanan')->find($counterId);
+
+        if (!$counter) {
+            return response()->json([
+                'message' => 'Counter not found',
+            ], 404);
+        }
+
+        // Build query: only waiting queues
+        $query = Queue::where('status', 'waiting');
+
+        if ($counter->layanan) {
+            // Counter has layanan → only call queues for that layanan
+            $query->where('layanan_id', $counter->layanan->id);
+        } else {
+            // Counter has no layanan → call queues for this counter or unassigned
+            $query->where(fn($q) => $q
+                ->where('counter_id', $counterId)
+                ->orWhereNull('counter_id')
+            );
+        }
+
+        $queue = $query->orderBy('created_at')->first();
 
         if (!$queue) {
             return response()->json([
@@ -324,7 +387,7 @@ class QueuesController extends Controller
         }
 
         return response()->json([
-            'data' => $queue->load('counter'),
+            'data' => $queue->load('counter', 'layanan'),
             'message' => 'Next queue called successfully',
         ]);
     }
@@ -347,20 +410,28 @@ class QueuesController extends Controller
         return response()->json(['data' => $stats]);
     }
 
-    protected function generateTicketNumber(): string
+    protected function generateTicketNumber(?int $layananId = null): string
     {
-        $date = now()->format('ymd');
-        $lastQueue = Queue::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
+        $prefix = 'A';
+        $query = Queue::whereDate('created_at', today());
 
-        if ($lastQueue && preg_match('/A(\d+)$/', $lastQueue->ticket_number, $matches)) {
+        if ($layananId) {
+            $layanan = \App\Models\Layanan::find($layananId);
+            if ($layanan) {
+                $prefix = strtoupper(substr($layanan->code, 0, 3));
+            }
+            $query->where('layanan_id', $layananId);
+        }
+
+        $lastQueue = $query->orderBy('id', 'desc')->first();
+
+        if ($lastQueue && preg_match('/(\d+)$/', $lastQueue->ticket_number, $matches)) {
             $sequence = (int) $matches[1] + 1;
         } else {
             $sequence = 1;
         }
 
-        return 'A' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
     }
 
     protected function calculateAvgWaitMinutes(): float
@@ -377,5 +448,26 @@ class QueuesController extends Controller
         $totalMinutes = $completedToday->sum(fn($q) => $q->called_at->diffInMinutes($q->created_at));
         
         return round($totalMinutes / $completedToday->count(), 1);
+    }
+
+    protected function canOperateOnCounter(User $user, ?int $counterId): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if (!$user->isLoket()) {
+            return true;
+        }
+
+        if ($counterId === null) {
+            return true;
+        }
+
+        if ((int) $counterId === (int) $user->counter_id) {
+            return true;
+        }
+
+        return $user->assignedCounters()->where('counter_id', $counterId)->exists();
     }
 }

@@ -2,9 +2,13 @@
 
 use App\Http\Middleware\AssignCounter;
 use App\Http\Middleware\CheckRole;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,6 +23,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => CheckRole::class,
             'counter.assign' => AssignCounter::class,
             'auth' => \App\Http\Middleware\Authenticate::class,
+        ]);
+
+        // Stateful API middleware for SPA cookie-based auth (Sanctum)
+        $middleware->api(prepend: [
+            EncryptCookies::class,
+            ShareErrorsFromSession::class,
+            StartSession::class,
+            SubstituteBindings::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

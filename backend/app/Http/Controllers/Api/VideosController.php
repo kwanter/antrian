@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Video;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\Process\Process;
 
 class VideosController extends Controller
 {
@@ -44,11 +45,13 @@ class VideosController extends Controller
         $path = $request->file('video')->store('videos', 'public');
         $fileUrl = "/storage/{$path}";
 
+        $duration = $request->duration ?? $this->extractDuration(storage_path("app/public/{$path}"));
+
         $video = Video::create([
             'display_id' => $request->display_id,
             'file_url' => $fileUrl,
             'title' => $request->title,
-            'duration' => $request->duration,
+            'duration' => $duration,
             'volume_level' => $request->volume_level ?? 1.0,
             'is_active' => $request->boolean('is_active', true),
             'playlist_order' => $request->playlist_order ?? 0,
@@ -97,6 +100,7 @@ class VideosController extends Controller
         if ($request->hasFile('video')) {
             $path = $request->file('video')->store('videos', 'public');
             $updateData['file_url'] = "/storage/{$path}";
+            $updateData['duration'] = $request->duration ?? $this->extractDuration(storage_path("app/public/{$path}"));
         }
 
         $video->update($updateData);
@@ -157,5 +161,36 @@ class VideosController extends Controller
         return response()->json([
             'message' => 'Video order updated successfully',
         ]);
+    }
+
+    protected function extractDuration(string $filePath): ?int
+    {
+        if (!file_exists($filePath)) {
+            return null;
+        }
+
+        $candidates = ['/usr/local/bin/ffprobe', '/usr/bin/ffprobe', '/opt/homebrew/bin/ffprobe'];
+        $ffprobe = null;
+        foreach ($candidates as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                $ffprobe = $path;
+                break;
+            }
+        }
+
+        if ($ffprobe === null) {
+            return null;
+        }
+
+        $process = new Process([$ffprobe, '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', $filePath]);
+        $process->run();
+
+        $output = trim($process->getOutput());
+
+        if (is_numeric($output)) {
+            return (int) round((float) $output);
+        }
+
+        return null;
     }
 }

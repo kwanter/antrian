@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CountersController;
 use App\Http\Controllers\Api\DisplaysController;
 use App\Http\Controllers\Api\KioskStationsController;
+use App\Http\Controllers\Api\LayananController;
 use App\Http\Controllers\Api\PrinterProfilesController;
 use App\Http\Controllers\Api\QueuesController;
 use App\Http\Controllers\Api\UsersController;
@@ -31,6 +32,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);
     Route::get('/videos', [VideosController::class, 'index']);
     Route::get('/queues', [QueuesController::class, 'index']);
+
+    // Layanan — public for kiosk selection
+    Route::get('/layanans', [LayananController::class, 'index']);
+    Route::get('/layanans/{layanan}', [LayananController::class, 'show']);
 });
 
 // Protected routes (requires Sanctum authentication)
@@ -96,6 +101,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::delete('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'destroy']);
     Route::post('/kiosk-stations/{kioskStation}/regenerate-token', [KioskStationsController::class, 'regenerateToken']);
     Route::post('/kiosk-stations/{kioskStation}/heartbeat', [KioskStationsController::class, 'heartbeat']);
+
+    // Layanan — admin CRUD (list/show already public above)
+    Route::post('/layanans', [LayananController::class, 'store']);
+    Route::put('/layanans/{layanan}', [LayananController::class, 'update']);
+    Route::delete('/layanans/{layanan}', [LayananController::class, 'destroy']);
+    Route::get('/layanans/{layanan}/queues', [LayananController::class, 'queues']);
 
     // Audit Logs (admin only)
     Route::get('/audit-logs', [AuditLogsController::class, 'index']);

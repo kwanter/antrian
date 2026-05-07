@@ -21,6 +21,7 @@ class Queue extends Model
         'called_by',
         'called_at',
         'completed_at',
+        'layanan_id',
     ];
 
     protected function casts(): array
@@ -35,6 +36,11 @@ class Queue extends Model
     public function counter(): BelongsTo
     {
         return $this->belongsTo(Counter::class);
+    }
+
+    public function layanan(): BelongsTo
+    {
+        return $this->belongsTo(Layanan::class);
     }
 
     public function calledByUser(): BelongsTo

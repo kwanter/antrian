@@ -18,8 +18,8 @@
       "Zustand"
     ],
     "description": "Queue management system for service counters with real-time WebSocket updates",
-    "analyzedAt": "2026-05-05T01:57:33.597Z",
-    "gitCommitHash": "86a1889a18d5648930500d5e88ed52237069b751"
+    "analyzedAt": "2026-05-05T10:15:00.000Z",
+    "gitCommitHash": "7078e7fb54ead32696546f7f349a8a0b581f859e"
   },
   "nodes": [
     {

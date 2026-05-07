@@ -40,7 +40,8 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::login($user);
+        $request->session()->regenerate();
 
         // Audit log
         AuditLog::log(
@@ -54,8 +55,7 @@ class AuthController extends Controller
 
         return response()->json([
             'data' => [
-                'token' => $token,
-                'user' => $user->load('counter', 'assignedCounters'),
+                'user' => $user->load('counter.layanan', 'assignedCounters'),
             ],
             'message' => 'Login successful',
         ]);
@@ -64,7 +64,7 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         // Audit log
         AuditLog::log(
             action: 'logout',
@@ -75,7 +75,10 @@ class AuthController extends Controller
             userId: $user->id
         );
 
-        $request->user()->currentAccessToken()->delete();
+        // Logout from web session (Sanctum session cookie auth)
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json([
             'message' => 'Logout successful',
@@ -92,19 +95,15 @@ class AuthController extends Controller
     public function refreshToken(Request $request): JsonResponse
     {
         $user = $request->user();
-        
-        // Delete current token
-        $request->user()->currentAccessToken()->delete();
-        
-        // Create new token
-        $token = $user->createToken('auth-token')->plainTextToken;
+
+        // Regenerate session to rotate session ID
+        $request->session()->regenerate();
 
         return response()->json([
             'data' => [
-                'token' => $token,
-                'user' => $user->load('counter', 'assignedCounters'),
+                'user' => $user->load('counter.layanan', 'assignedCounters'),
             ],
-            'message' => 'Token refreshed',
+            'message' => 'Session refreshed',
         ]);
     }
 }
