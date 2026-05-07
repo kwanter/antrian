@@ -165,6 +165,41 @@ class QueueDateSafetyTest extends TestCase
         $response = $this->actingAs($user)->postJson("/api/v1/counters/{$counter->id}/call-next");
 
         $response->assertOk()
-            ->assertJsonPath('data.id', $todayQueue->id);
+            ->assertJsonPath('data.id', $todayQueue->id)
+            ->assertJsonPath('data.layanan_id', $layanan->id)
+            ->assertJsonPath('data.counter_id', $counter->id)
+            ->assertJsonStructure([
+                'data' => ['id', 'ticket_number', 'service_type', 'status', 'layanan_id', 'counter_id', 'counter', 'layanan', 'created_at', 'called_at', 'completed_at'],
+            ]);
+    }
+
+    public function test_complete_returns_full_queue_payload(): void
+    {
+        $counter = Counter::factory()->create();
+        $layanan = Layanan::factory()->create(['counter_id' => $counter->id]);
+        $user = User::factory()->create([
+            'role' => 'loket',
+            'counter_id' => $counter->id,
+        ]);
+        $queue = Queue::create([
+            'ticket_number' => 'A001',
+            'service_type' => 'general',
+            'status' => 'called',
+            'counter_id' => $counter->id,
+            'layanan_id' => $layanan->id,
+            'created_at' => now(),
+            'called_at' => now()->subMinutes(5),
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/api/v1/queues/{$queue->id}/complete");
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $queue->id)
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.layanan_id', $layanan->id)
+            ->assertJsonPath('data.counter_id', $counter->id)
+            ->assertJsonStructure([
+                'data' => ['id', 'ticket_number', 'service_type', 'status', 'layanan_id', 'counter_id', 'counter', 'layanan', 'created_at', 'called_at', 'completed_at'],
+            ]);
     }
 }

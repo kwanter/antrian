@@ -36,12 +36,17 @@ class QueueCompleted implements ShouldBroadcastNow
             'queue' => [
                 'id' => $this->queue->id,
                 'ticket_number' => $this->queue->ticket_number,
+                'service_type' => $this->queue->service_type,
                 'status' => $this->queue->status,
+                'layanan_id' => $this->queue->layanan_id,
+                'counter_id' => $this->queue->counter_id,
                 'counter' => $this->queue->counter ? [
                     'id' => $this->queue->counter->id,
                     'name' => $this->queue->counter->name,
                 ] : null,
+                'called_at' => $this->queue->called_at?->toISOString(),
                 'completed_at' => $this->queue->completed_at?->toISOString(),
+                'created_at' => $this->queue->created_at?->toISOString(),
             ],
             'previous_status' => $this->queue->getOriginal('status'),
         ];
