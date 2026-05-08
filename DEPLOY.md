@@ -1,8 +1,8 @@
-# Production Deploy: Ubuntu VPS
+# Deploy Produksi: VPS Ubuntu
 
 Target:
 - Domain: `antrian.pn`
-- App path: `/var/www/antrian`
+- Path aplikasi: `/var/www/antrian`
 - Web server: Apache
 - Database: MySQL
 - PHP: 8.4
@@ -10,18 +10,16 @@ Target:
 - Backend: Laravel
 - Realtime: Laravel Reverb
 
-## Important
+## Prasyarat
 
-VPS Node.js `18.19.1` is too old for Next.js `16.2.4`.
+Node.js `18.19.1` di VPS terlalu lama untuk Next.js `16.2.4`. Minimum: `>=20.9.0`. Gunakan Node.js 22 LTS.
 
-Required Node.js: `>=20.9.0`. Use Node.js 22 LTS.
+Peringatan status lokal:
+- Direktori `frontend` memiliki banyak file yang belum di-track.
+- Git deploy akan terlewat jika belum di-commit/push.
+- Upload lokal dengan `rsync` paling aman untuk kondisi saat ini.
 
-Current local state warning:
-- The `frontend` directory has many untracked files.
-- Git deploy will miss those files unless committed/pushed.
-- Uploading local copy with `rsync` is safest for current state.
-
-Do not commit real production secrets into this file. Replace placeholders directly on the VPS.
+Jangan commit secret produksi asli ke file ini. Ganti placeholder langsung di VPS.
 
 ## 0. SSH
 
@@ -38,7 +36,7 @@ node -v
 npm -v
 ```
 
-## 2. Install server dependencies
+## 2. Install dependensi server
 
 ```bash
 sudo apt update
@@ -49,9 +47,9 @@ sudo a2enmod rewrite proxy proxy_http proxy_wstunnel headers ssl
 sudo systemctl restart apache2
 ```
 
-## 3. Create MySQL database
+## 3. Buat database MySQL
 
-Use the VPS MySQL credentials provided out-of-band.
+Gunakan kredensial MySQL VPS yang disediakan terpisah.
 
 ```bash
 sudo mysql -u root -p
@@ -65,23 +63,23 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-## 4. Put app in `/var/www/antrian`
+## 4. Taruh aplikasi di `/var/www/antrian`
 
-### Option A: Git deploy
+### Opsi A: Git deploy
 
 ```bash
 sudo mkdir -p /var/www
 sudo chown -R "$USER:www-data" /var/www
 
-git clone GIT_URL /var/www/antrian
+git clone <GIT_URL> /var/www/antrian
 cd /var/www/antrian
 ```
 
-Only use this if all local changes are committed and pushed.
+Hanya gunakan jika semua perubahan lokal sudah di-commit dan push.
 
-### Option B: Upload local copy
+### Opsi B: Upload dari lokal
 
-Run from local machine:
+Jalankan dari mesin lokal:
 
 ```bash
 rsync -az --delete \
@@ -94,7 +92,7 @@ rsync -az --delete \
 
 ## 5. Backend `.env`
 
-On VPS:
+Di VPS:
 
 ```bash
 cd /var/www/antrian/backend
@@ -103,7 +101,7 @@ php artisan key:generate
 nano .env
 ```
 
-Use:
+Gunakan:
 
 ```env
 APP_NAME="Antrian"
@@ -145,18 +143,18 @@ PUSHER_PORT="${REVERB_PORT}"
 PUSHER_SCHEME="${REVERB_SCHEME}"
 ```
 
-Generate Reverb secrets:
+Generate secret Reverb:
 
 ```bash
 openssl rand -hex 24
 openssl rand -hex 32
 ```
 
-Use generated values for:
+Gunakan nilai yang dihasilkan untuk:
 - `REVERB_APP_KEY`
 - `REVERB_APP_SECRET`
 
-## 6. Backend install and optimize
+## 6. Install dan optimasi backend
 
 ```bash
 cd /var/www/antrian/backend
@@ -179,7 +177,7 @@ cd /var/www/antrian/frontend
 nano .env.production
 ```
 
-Use:
+Gunakan:
 
 ```env
 NEXT_PUBLIC_API_URL=https://antrian.pn/api/v1
@@ -189,7 +187,7 @@ NEXT_PUBLIC_PUSHER_PORT=443
 NEXT_PUBLIC_PUSHER_SCHEME=https
 ```
 
-`NEXT_PUBLIC_PUSHER_KEY` must match backend `REVERB_APP_KEY`.
+`NEXT_PUBLIC_PUSHER_KEY` harus sama dengan `REVERB_APP_KEY` di backend.
 
 Build frontend:
 
@@ -198,7 +196,7 @@ npm ci
 npm run build
 ```
 
-## 8. systemd frontend service
+## 8. Service systemd frontend
 
 ```bash
 sudo nano /etc/systemd/system/antrian-frontend.service
@@ -223,7 +221,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-## 9. systemd queue service
+## 9. Service systemd queue worker
 
 ```bash
 sudo nano /etc/systemd/system/antrian-queue.service
@@ -247,7 +245,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-## 10. systemd Reverb service
+## 10. Service systemd Reverb
 
 ```bash
 sudo nano /etc/systemd/system/antrian-reverb.service
@@ -271,7 +269,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Enable services:
+Aktifkan semua service:
 
 ```bash
 sudo systemctl daemon-reload
@@ -279,7 +277,7 @@ sudo systemctl enable --now antrian-frontend antrian-queue antrian-reverb
 sudo systemctl status antrian-frontend antrian-queue antrian-reverb
 ```
 
-## 11. Apache virtual host
+## 11. Virtual host Apache
 
 ```bash
 sudo nano /etc/apache2/sites-available/antrian.pn.conf
@@ -312,7 +310,7 @@ sudo nano /etc/apache2/sites-available/antrian.pn.conf
 </VirtualHost>
 ```
 
-Enable site:
+Aktifkan site:
 
 ```bash
 sudo a2ensite antrian.pn.conf
@@ -322,19 +320,19 @@ sudo systemctl reload apache2
 
 ## 12. HTTPS
 
-Create DNS record first:
+Buat DNS record terlebih dahulu:
 
 ```txt
 antrian.pn -> SERVER_IP
 ```
 
-Then run:
+Lalu jalankan:
 
 ```bash
 sudo certbot --apache -d antrian.pn
 ```
 
-After Certbot, verify SSL vhost keeps these proxy rules:
+Setelah Certbot, pastikan SSL vhost tetap memiliki proxy rules berikut:
 
 ```apache
 ProxyPreserveHost On
@@ -345,13 +343,13 @@ ProxyPass / http://127.0.0.1:3000/
 ProxyPassReverse / http://127.0.0.1:3000/
 ```
 
-For HTTPS vhost, set forwarded proto:
+Untuk vhost HTTPS, set forwarded proto:
 
 ```apache
 RequestHeader set X-Forwarded-Proto "https"
 ```
 
-## 13. Verify
+## 13. Verifikasi
 
 ```bash
 curl -I http://antrian.pn/up
@@ -363,32 +361,31 @@ sudo journalctl -u antrian-reverb -n 100 --no-pager
 sudo tail -n 100 /var/www/antrian/backend/storage/logs/laravel.log
 ```
 
-Browser checks:
-- `https://antrian.pn/login`
-- login admin
-- `/kiosk` create queue ticket
-- `/display` receives realtime updates
-- `/displays` volume slider saves once after drag/release
+Cek browser:
+- `https://antrian.pn/login` — login admin
+- `/kiosk` — buat tiket antrian
+- `/display` — menerima pembaruan realtime
+- `/displays` — slider volume tersimpan setelah drag/release
 
-## 14. Common fixes
+## 14. Perbaikan Umum
 
-### Frontend service fails
+### Service frontend gagal
 
 ```bash
 sudo journalctl -u antrian-frontend -n 200 --no-pager
 node -v
 ```
 
-If Node is below `20.9.0`, upgrade to Node 22.
+Jika Node di bawah `20.9.0`, upgrade ke Node 22.
 
-### Laravel permission errors
+### Error permission Laravel
 
 ```bash
 sudo chown -R www-data:www-data /var/www/antrian/backend/storage /var/www/antrian/backend/bootstrap/cache
 sudo chmod -R ug+rw /var/www/antrian/backend/storage /var/www/antrian/backend/bootstrap/cache
 ```
 
-### Config changes not applied
+### Perubahan config tidak diterapkan
 
 ```bash
 cd /var/www/antrian/backend
@@ -401,15 +398,28 @@ sudo systemctl restart antrian-queue antrian-reverb
 sudo systemctl restart apache2
 ```
 
-### Reverb/websocket fails
+### Reverb/websocket gagal
 
 ```bash
 sudo systemctl status antrian-reverb
 sudo journalctl -u antrian-reverb -n 100 --no-pager
 ```
 
-Check matching values:
+Cek kesesuaian nilai:
 - backend `REVERB_APP_KEY`
 - frontend `NEXT_PUBLIC_PUSHER_KEY`
 - frontend `NEXT_PUBLIC_PUSHER_SCHEME=https`
 - frontend `NEXT_PUBLIC_PUSHER_PORT=443`
+
+## Referensi Versi Teknologi
+
+| Komponen | Versi |
+|----------|-------|
+| PHP | 8.3+ |
+| Laravel | 13.x |
+| Laravel Reverb | 1.10+ |
+| Laravel Sanctum | 4.0+ |
+| Node.js | 22 LTS |
+| Next.js | 16.2.4 |
+| React | 19.2.4 |
+| MySQL | 8.x |
