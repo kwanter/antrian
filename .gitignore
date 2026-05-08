@@ -58,7 +58,9 @@ test-results/
 # Recovery snapshots/backups
 .git.recovery-*/
 backend.recovery-snapshot-*/
+frontend.recovery-snapshot-*/
 metadata.recovery-snapshot-*/
 backup/
 .recovery-timestamp
+.frontend-recovery-snapshot
 .metadata-recovery-snapshot
