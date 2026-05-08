@@ -51,6 +51,7 @@ frontend/coverage/
 .atlas/*.db-wal
 .playwright-mcp/*.log
 .playwright-mcp/page-*.yml
+.claude/worktrees/
 .serena/cache/
 test-results/
 *.log
