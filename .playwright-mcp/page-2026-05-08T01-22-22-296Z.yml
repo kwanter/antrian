@@ -1,0 +1,89 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e29]:
+    - complementary [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: Antrian Digital
+        - button [ref=e33]:
+          - img
+      - separator [ref=e34]
+      - navigation [ref=e35]:
+        - link "Dashboard" [ref=e37] [cursor=pointer]:
+          - /url: /
+          - img [ref=e38]
+          - generic [ref=e43]: Dashboard
+        - link "Pengguna" [ref=e45] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e46]
+          - generic [ref=e51]: Pengguna
+        - link "Loket" [ref=e53] [cursor=pointer]:
+          - /url: /counters
+          - img [ref=e54]
+          - generic [ref=e57]: Loket
+        - link "Layanan" [ref=e59] [cursor=pointer]:
+          - /url: /layanans
+          - img [ref=e60]
+          - generic [ref=e63]: Layanan
+        - link "Display" [ref=e65] [cursor=pointer]:
+          - /url: /displays
+          - img [ref=e66]
+          - generic [ref=e68]: Display
+        - link "Printer" [ref=e70] [cursor=pointer]:
+          - /url: /printers
+          - img [ref=e71]
+          - generic [ref=e75]: Printer
+        - link "Audit Log" [ref=e77] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e78]
+          - generic [ref=e81]: Audit Log
+      - separator [ref=e82]
+      - paragraph [ref=e84]: v1.0.0 · Sistem Antrian
+    - generic [ref=e85]:
+      - banner [ref=e86]:
+        - heading "Panel Admin" [level=1] [ref=e87]
+        - generic [ref=e88]:
+          - generic [ref=e89]: Admin
+          - button [ref=e90]:
+            - img
+      - main [ref=e91]:
+        - generic [ref=e92]:
+          - heading "Dashboard" [level=2] [ref=e93]
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - generic [ref=e97]: Antrian Aktif
+                - img [ref=e98]
+              - generic [ref=e104]: "31"
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - generic [ref=e107]: Rata-rata Tunggu
+                - img [ref=e108]
+              - generic [ref=e111]:
+                - generic [ref=e112]: "0"
+                - paragraph [ref=e113]: menit
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - generic [ref=e116]: Loket Aktif
+                - img [ref=e117]
+              - generic [ref=e120]: "0"
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]: Status Printer
+                - img [ref=e124]
+              - generic [ref=e131]: Offline
+          - generic [ref=e132]:
+            - generic [ref=e134]: Antrian Hari Ini
+            - table [ref=e137]:
+              - rowgroup [ref=e138]:
+                - row "No. Antrian Layanan Status Loket Dibuat" [ref=e139]:
+                  - columnheader "No. Antrian" [ref=e140]
+                  - columnheader "Layanan" [ref=e141]
+                  - columnheader "Status" [ref=e142]
+                  - columnheader "Loket" [ref=e143]
+                  - columnheader "Dibuat" [ref=e144]
+              - rowgroup [ref=e145]:
+                - row "Belum ada antrian" [ref=e146]:
+                  - cell "Belum ada antrian" [ref=e147]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e10] [cursor=pointer]:
+    - img [ref=e11]
+  - alert [ref=e14]: Sistem Antrian Digital

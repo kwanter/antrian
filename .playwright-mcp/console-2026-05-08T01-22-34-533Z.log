@@ -1,0 +1,16 @@
+[     114ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[     129ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  135724ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  135966ms] [LOG] [Fast Refresh] done in 247ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  192646ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  192784ms] [LOG] [Fast Refresh] done in 205ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  232186ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  232283ms] [LOG] [Fast Refresh] done in 150ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  274181ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  274300ms] [LOG] [Fast Refresh] done in 190ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  309872ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  309941ms] [LOG] [Fast Refresh] done in 139ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  347563ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  347650ms] [LOG] [Fast Refresh] done in 158ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  392808ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[  392902ms] [LOG] [Fast Refresh] done in 161ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431

@@ -11988,3 +11988,9 @@
 [47763060ms] [LOG] [Fast Refresh] done in 261ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
 [47801024ms] [ERROR] WebSocket connection to 'ws://localhost:8080/app/antrian123456789?protocol=7&client=js&version=8.5.0&flash=false' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/12kg_pusher-js_dist_web_pusher_0836v9n.js:3463
 [47803018ms] [ERROR] WebSocket connection to 'wss://localhost:8080/app/antrian123456789?protocol=7&client=js&version=8.5.0&flash=false' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/_next/static/chunks/12kg_pusher-js_dist_web_pusher_0836v9n.js:3463
+[47907762ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[47909146ms] [LOG] [Fast Refresh] done in 1461ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[47939213ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[47939366ms] [LOG] [Fast Refresh] done in 226ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[47968322ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431
+[47968386ms] [LOG] [Fast Refresh] done in 134ms @ http://localhost:3000/_next/static/chunks/12kg_next_dist_0b2~8qx._.js:2431

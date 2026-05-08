@@ -128,7 +128,7 @@ class DisplaysController extends Controller
                 'current_queue' => $currentQueue?->load('counter'),
                 'recent_queues' => $recentQueues->load('counter'),
                 'video_settings' => [
-                    'volume' => $activeVideo?->volume_level ?? 1.0,
+                    'volume' => $display->settings['volume'] ?? $activeVideo?->volume_level ?? 1.0,
                     'video_id' => $activeVideo?->id,
                     'video_url' => $activeVideo?->file_url,
                 ],
@@ -143,10 +143,14 @@ class DisplaysController extends Controller
             'video_id' => 'nullable|exists:videos,id',
         ]);
 
-        // Broadcast volume update
+        $volume = (float) $request->volume;
+        $settings = $display->settings ?? [];
+        $settings['volume'] = $volume;
+        $display->update(['settings' => $settings]);
+
         event(new VolumeUpdate(
             displayId: $display->id,
-            volume: $request->volume,
+            volume: $volume,
             videoId: $request->video_id
         ));
 
@@ -154,13 +158,14 @@ class DisplaysController extends Controller
             action: 'volume_update',
             model: 'Display',
             modelId: $display->id,
-            changes: ['volume' => $request->volume, 'video_id' => $request->video_id],
+            changes: ['volume' => $volume, 'video_id' => $request->video_id],
             ipAddress: $request->ip(),
             userId: $request->user()?->id
         );
 
         return response()->json([
             'message' => 'Volume updated successfully',
+            'data' => $display->fresh(),
         ]);
     }
 }

@@ -24,7 +24,7 @@ class VolumeUpdate implements ShouldBroadcastNow
     {
         return [
             new PrivateChannel('display.' . $this->displayId),
-            new PrivateChannel('display-volume-updates'),
+            new Channel('display-volume-updates'),
         ];
     }
 
