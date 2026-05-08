@@ -29,13 +29,14 @@ Route::prefix('v1')->group(function () {
 
     // Display page routes — public for display monitors
     Route::get('/displays', [DisplaysController::class, 'index']);
+    Route::get('/displays/{display}', [DisplaysController::class, 'show']);
     Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);
     Route::get('/videos', [VideosController::class, 'index']);
-    Route::get('/queues', [QueuesController::class, 'index']);
 
     // Layanan — public for kiosk selection
     Route::get('/layanans', [LayananController::class, 'index']);
     Route::get('/layanans/{layanan}', [LayananController::class, 'show']);
+    Route::get('/layanans/{layanan}/queues', [LayananController::class, 'queues']);
 });
 
 // Protected routes (requires Sanctum authentication)
@@ -46,6 +47,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 
     // Queues
+    Route::get('/queues', [QueuesController::class, 'index']);
     Route::get('/queues/{queue}', [QueuesController::class, 'show']);
     Route::post('/queues/{queue}/call', [QueuesController::class, 'call']);
     Route::post('/queues/{queue}/recall', [QueuesController::class, 'recall']);
@@ -73,18 +75,22 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::delete('/users/{user}', [UsersController::class, 'destroy']);
 
     // Displays — admin only (except index and sync which are public)
-    Route::post('/displays', [DisplaysController::class, 'store']);
-    Route::get('/displays/{display}', [DisplaysController::class, 'show']);
-    Route::put('/displays/{display}', [DisplaysController::class, 'update']);
-    Route::delete('/displays/{display}', [DisplaysController::class, 'destroy']);
-    Route::post('/displays/{display}/volume', [DisplaysController::class, 'updateVolume']);
+    Route::middleware('role:admin,super')->group(function () {
+        Route::post('/displays', [DisplaysController::class, 'store']);
+        Route::put('/displays/{display}', [DisplaysController::class, 'update']);
+        Route::delete('/displays/{display}', [DisplaysController::class, 'destroy']);
+        Route::post('/displays/{display}/volume', [DisplaysController::class, 'updateVolume']);
+        Route::post('/displays/{display}/announcer', [DisplaysController::class, 'updateAnnouncer']);
+    });
 
     // Videos — admin only (except index which is public)
-    Route::post('/videos', [VideosController::class, 'store']);
+    Route::middleware('role:admin,super')->group(function () {
+        Route::post('/videos', [VideosController::class, 'store']);
+        Route::put('/videos/{video}', [VideosController::class, 'update']);
+        Route::delete('/videos/{video}', [VideosController::class, 'destroy']);
+        Route::post('/videos/reorder', [VideosController::class, 'reorder']);
+    });
     Route::get('/videos/{video}', [VideosController::class, 'show']);
-    Route::put('/videos/{video}', [VideosController::class, 'update']);
-    Route::delete('/videos/{video}', [VideosController::class, 'destroy']);
-    Route::post('/videos/reorder', [VideosController::class, 'reorder']);
 
     // Printer Profiles
     Route::get('/printer-profiles', [PrinterProfilesController::class, 'index']);
@@ -106,7 +112,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/layanans', [LayananController::class, 'store']);
     Route::put('/layanans/{layanan}', [LayananController::class, 'update']);
     Route::delete('/layanans/{layanan}', [LayananController::class, 'destroy']);
-    Route::get('/layanans/{layanan}/queues', [LayananController::class, 'queues']);
 
     // Audit Logs (admin only)
     Route::get('/audit-logs', [AuditLogsController::class, 'index']);

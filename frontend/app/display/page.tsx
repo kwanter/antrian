@@ -1,28 +1,35 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useDisplayChannel } from "@/hooks/use-websocket";
 import { useVolumeChannel } from "@/hooks/use-websocket";
 import { useLayananQueues } from "@/hooks/use-queue";
 import { getLayanans } from "@/lib/api";
 import api from "@/lib/api";
-import type { Display, Layanan, Video } from "@/lib/types";
+import type { Display, Layanan, Queue, Video } from "@/lib/types";
 import { VideoPlayer } from "@/components/display/video-player";
 import { LayananQueueCard } from "@/components/display/layanan-queue-card";
 import { SlotTime } from "@/components/display/slot-time";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Volume2 } from "lucide-react";
 
 function todayDate() {
-  return new Date().toISOString().slice(0, 10);
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
-function LayananPanel({ layanan }: { layanan: Layanan }) {
+function LayananPanel({ layanan, counterId }: { layanan: Layanan; counterId?: number }) {
   const { data: queuesData } = useLayananQueues(
     layanan.id,
     {
       status: "called,serving",
       date: todayDate(),
+      ...(counterId != null ? { counter_id: counterId } : {}),
     },
     { refetchInterval: 10000 }
   );
@@ -58,6 +65,8 @@ function DisplayContent() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [layanans, setLayanans] = useState<Layanan[]>([]);
   const [volumeOverride, setVolumeOverride] = useState<number | null>(null);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const lastAnnouncementRef = useRef<string | null>(null);
 
   // Fetch display config
   useEffect(() => {
@@ -112,33 +121,115 @@ function DisplayContent() {
 
   const volume = volumeOverride ?? configuredVolume;
 
+  const shouldAnnounceQueue = useCallback((queue: Queue) => {
+    const counterId = display?.settings?.counter_id;
+    return counterId == null || queue.counter_id === counterId;
+  }, [display?.settings?.counter_id]);
+
+  const playAnnouncement = useCallback(async (queue: Queue) => {
+    if (!display || display.settings?.announcer_enabled === false) return;
+
+    const announcerVolume = Math.min(1, Math.max(0, display.settings?.announcer_volume ?? 1));
+    const counterName = queue.counter?.name ?? "loket";
+    const message = `Nomor antrian ${queue.ticket_number}, silakan menuju ${counterName}`;
+    const soundUrl = display.settings?.announcer_sound_url;
+
+    if (soundUrl?.startsWith("/storage/announcers/")) {
+      const audio = new Audio(soundUrl);
+      audio.volume = announcerVolume;
+
+      try {
+        await audio.play();
+        setSoundBlocked(false);
+      } catch {
+        setSoundBlocked(true);
+      }
+
+      return;
+    }
+
+    if (!("speechSynthesis" in window)) return;
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "id-ID";
+    utterance.volume = announcerVolume;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    setSoundBlocked(false);
+  }, [display]);
+
+  const enableSound = () => {
+    const soundUrl = display?.settings?.announcer_sound_url;
+    if (!soundUrl?.startsWith("/storage/announcers/")) {
+      setSoundBlocked(false);
+      return;
+    }
+
+    const audio = new Audio(soundUrl);
+    audio.volume = 0;
+    void audio.play().catch(() => {}).finally(() => {
+      audio.pause();
+      setSoundBlocked(false);
+    });
+  };
+
   // WebSocket: display-sync already invalidates all ["queues"] queries via use-websocket
-  useDisplayChannel();
+  useDisplayChannel((event) => {
+    const queue = event.queue;
+    if (!queue || queue.status !== "called" || !shouldAnnounceQueue(queue)) return;
+
+    const announcementKey = `${queue.id}:${queue.called_at ?? ""}`;
+    if (lastAnnouncementRef.current === announcementKey) return;
+
+    lastAnnouncementRef.current = announcementKey;
+    void playAnnouncement(queue);
+  });
 
   useVolumeChannel((event) => {
     if (!display || event.display_id !== display.id) return;
+
+    if (event.settings) {
+      setDisplay((current) => current ? { ...current, settings: event.settings ?? current.settings } : current);
+
+      if (event.settings.volume != null) {
+        setVolumeOverride(Math.round(event.settings.volume * 100));
+      }
+
+      return;
+    }
 
     setVolumeOverride(Math.round(event.volume * 100));
   });
 
   return (
-    <div className="h-screen flex gap-4 p-4">
-      {/* Left: Video Player */}
+    <div className="h-screen flex gap-4 p-4 relative">
       <div className="w-[65%] h-full">
         <VideoPlayer videos={sortedVideos} volume={volume} />
       </div>
 
-      {/* Right: Layanan queue panels */}
       <div className="w-[35%] h-full flex flex-col gap-3 overflow-hidden">
         <div className="flex-1 grid grid-cols-2 auto-rows-fr gap-3 overflow-y-auto py-1">
           {layanans.map((layanan) => (
-            <LayananPanel key={layanan.id} layanan={layanan} />
+            <LayananPanel
+              key={layanan.id}
+              layanan={layanan}
+              counterId={display?.settings?.counter_id ?? undefined}
+            />
           ))}
         </div>
         <div className="bg-slate-800 rounded-xl px-4 py-3">
           <SlotTime />
         </div>
       </div>
+
+      {soundBlocked && (
+        <div className="absolute inset-x-4 bottom-4 flex justify-center">
+          <Button onClick={enableSound} className="shadow-lg">
+            <Volume2 className="mr-2 h-4 w-4" />
+            Aktifkan suara announcer
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

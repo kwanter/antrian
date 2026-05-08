@@ -115,16 +115,30 @@ class LayananController extends Controller
 
     public function queues(Request $request, Layanan $layanan): JsonResponse
     {
-        $query = $layanan->queues()
-            ->with(['counter', 'calledByUser']);
+        $request->validate([
+            'status' => 'sometimes|string',
+            'date' => 'sometimes|date_format:Y-m-d',
+            'counter_id' => 'sometimes|integer|exists:counters,id',
+        ]);
 
-        if ($request->filled('status')) {
-            $statuses = array_filter(explode(',', (string) $request->query('status')));
+        $query = $layanan->queues()
+            ->with('counter');
+
+        $allowedStatuses = ['called', 'serving'];
+        $statuses = $request->filled('status')
+            ? array_values(array_intersect(array_filter(explode(',', (string) $request->query('status'))), $allowedStatuses))
+            : $allowedStatuses;
+
+        if ($statuses === []) {
+            $query->whereRaw('1 = 0');
+        } else {
             $query->whereIn('status', $statuses);
         }
 
-        if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->query('date'));
+        $query->whereDate('created_at', $request->query('date', today()->toDateString()));
+
+        if ($request->filled('counter_id')) {
+            $query->where('counter_id', $request->integer('counter_id'));
         }
 
         $queues = $query
@@ -132,7 +146,23 @@ class LayananController extends Controller
             ->paginate(50);
 
         return response()->json([
-            'data' => $queues->items(),
+            'data' => collect($queues->items())->map(fn($queue) => [
+                'id' => $queue->id,
+                'ticket_number' => $queue->ticket_number,
+                'service_type' => $queue->service_type,
+                'status' => $queue->status,
+                'layanan_id' => $queue->layanan_id,
+                'counter_id' => $queue->counter_id,
+                'counter' => $queue->counter ? [
+                    'id' => $queue->counter->id,
+                    'name' => $queue->counter->name,
+                    'code' => $queue->counter->code,
+                    'status' => $queue->counter->status,
+                ] : null,
+                'called_at' => $queue->called_at,
+                'completed_at' => $queue->completed_at,
+                'created_at' => $queue->created_at,
+            ])->values(),
             'meta' => [
                 'current_page' => $queues->currentPage(),
                 'last_page' => $queues->lastPage(),

@@ -225,7 +225,7 @@ export function useQueueStats() {
 
 export function useLayananQueues(
   layananId: number | undefined,
-  params?: { status?: QueueStatus | string; date?: string },
+  params?: { status?: QueueStatus | string; date?: string; counter_id?: number },
   options?: { refetchInterval?: number },
 ) {
   return useQuery({

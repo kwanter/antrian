@@ -60,12 +60,21 @@ export interface Queue {
 }
 
 // ── Display ──
+export interface DisplaySettings {
+  volume?: number;
+  counter_id?: number | null;
+  announcer_enabled?: boolean;
+  announcer_volume?: number;
+  announcer_sound_url?: string | null;
+  announcer_sound_title?: string | null;
+}
+
 export interface Display {
   id: number;
   name: string;
   location: string;
   is_active: boolean;
-  settings: Record<string, unknown>;
+  settings: DisplaySettings;
   created_at?: string;
 }
 
@@ -149,16 +158,19 @@ export interface QueueUpdateEvent {
 }
 
 export interface DisplaySyncEvent {
-  current_queue: Queue | null;
-  recent_queues: Queue[];
-  video_settings: {
+  current_queue?: Queue | null;
+  recent_queues?: Queue[];
+  video_settings?: {
     volume: number;
     video_id: number | null;
   };
+  queue?: Queue;
+  previous_status?: QueueStatus;
 }
 
 export interface VolumeUpdateEvent {
   display_id: number;
   volume: number;
   video_id?: number | null;
+  settings?: DisplaySettings | null;
 }

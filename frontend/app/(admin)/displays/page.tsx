@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Video as VideoIcon } from "lucide-react";
+import { Plus, Volume2, Video as VideoIcon } from "lucide-react";
 
 export default function DisplaysPage() {
   const queryClient = useQueryClient();
@@ -36,6 +37,8 @@ export default function DisplaysPage() {
   const [displayLocation, setDisplayLocation] = useState("");
   const [videoTitle, setVideoTitle] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [announcerFiles, setAnnouncerFiles] = useState<Record<number, File | null>>({});
+  const [announcerVolumeDrafts, setAnnouncerVolumeDrafts] = useState<Record<number, number>>({});
   const [volumeDrafts, setVolumeDrafts] = useState<Record<number, number>>({});
   const [volumePending, setVolumePending] = useState<Record<number, number>>({});
   const [volumeSaved, setVolumeSaved] = useState<Record<number, number>>({});
@@ -127,6 +130,29 @@ export default function DisplaysPage() {
     },
     onError: () => {
       toast.error("Gagal mengganti file video");
+    },
+  });
+
+  const updateAnnouncerMutation = useMutation({
+    mutationFn: ({ displayId, formData }: { displayId: number; formData: FormData }) =>
+      api.post(`/displays/${displayId}/announcer`, formData),
+    onSuccess: (response, variables) => {
+      const updatedDisplay = response.data.data as Display | undefined;
+      queryClient.setQueryData<Display[]>(["displays"], (current) =>
+        current?.map((display) =>
+          updatedDisplay && display.id === updatedDisplay.id ? updatedDisplay : display
+        ) ?? []
+      );
+      setAnnouncerFiles((current) => ({ ...current, [variables.displayId]: null }));
+      setAnnouncerVolumeDrafts((current) => {
+        const remaining = { ...current };
+        delete remaining[variables.displayId];
+        return remaining;
+      });
+      toast.success("Pengaturan announcer berhasil disimpan");
+    },
+    onError: () => {
+      toast.error("Gagal menyimpan pengaturan announcer");
     },
   });
 
@@ -255,6 +281,41 @@ export default function DisplaysPage() {
   const getDisplayVideos = (displayId: number) =>
     videos.filter((v) => v.display_id === displayId);
 
+  const saveAnnouncer = (display: Display, overrides: { enabled?: boolean; clearSound?: boolean } = {}) => {
+    const formData = new FormData();
+    const enabled = overrides.enabled ?? display.settings?.announcer_enabled ?? true;
+    const volume = announcerVolumeDrafts[display.id] ?? Math.round((display.settings?.announcer_volume ?? 1) * 100);
+    const file = announcerFiles[display.id];
+
+    formData.append("announcer_enabled", enabled ? "1" : "0");
+    formData.append("announcer_volume", String(volume / 100));
+
+    if (file) formData.append("announcer_sound", file);
+    if (overrides.clearSound) formData.append("clear_sound", "1");
+
+    updateAnnouncerMutation.mutate({ displayId: display.id, formData });
+  };
+
+  const testAnnouncer = (display: Display) => {
+    const volume = (announcerVolumeDrafts[display.id] ?? Math.round((display.settings?.announcer_volume ?? 1) * 100)) / 100;
+    const soundUrl = display.settings?.announcer_sound_url;
+
+    if (soundUrl?.startsWith("/storage/announcers/")) {
+      const audio = new Audio(soundUrl);
+      audio.volume = Math.min(1, Math.max(0, volume));
+      void audio.play().catch(() => toast.error("Browser memblokir suara. Klik lagi untuk tes."));
+      return;
+    }
+
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    const utterance = new SpeechSynthesisUtterance("Nomor antrian A001, silakan menuju loket satu");
+    utterance.lang = "id-ID";
+    utterance.volume = Math.min(1, Math.max(0, volume));
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -332,7 +393,7 @@ export default function DisplaysPage() {
                     <VolumeSlider
                       value={
                         volumeDrafts[display.id] ??
-                        Math.round(((display.settings?.volume as number) ?? 0.75) * 100)
+                        Math.round((display.settings?.volume ?? 0.75) * 100)
                       }
                       status={
                         volumePending[display.id] != null
@@ -344,6 +405,78 @@ export default function DisplaysPage() {
                       onChange={(v) => scheduleVolumeSave(display.id, v)}
                       onCommit={(v) => commitVolumeSave(display.id, v)}
                     />
+                  </div>
+
+                  <div className="rounded-lg border p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Announcer Antrian</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Putar suara saat nomor antrian dipanggil
+                        </p>
+                      </div>
+                      <Switch
+                        checked={display.settings?.announcer_enabled ?? true}
+                        onCheckedChange={(enabled) => saveAnnouncer(display, { enabled })}
+                      />
+                    </div>
+
+                    <VolumeSlider
+                      value={
+                        announcerVolumeDrafts[display.id] ??
+                        Math.round((display.settings?.announcer_volume ?? 1) * 100)
+                      }
+                      onChange={(value) => setAnnouncerVolumeDrafts((current) => ({ ...current, [display.id]: value }))}
+                      onCommit={() => saveAnnouncer(display)}
+                    />
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`announcer-${display.id}`}>File suara custom</Label>
+                      <Input
+                        id={`announcer-${display.id}`}
+                        type="file"
+                        accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/aac"
+                        onChange={(event) =>
+                          setAnnouncerFiles((current) => ({
+                            ...current,
+                            [display.id]: event.target.files?.[0] ?? null,
+                          }))
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {announcerFiles[display.id]?.name ?? display.settings?.announcer_sound_title ?? "Tanpa file custom, gunakan suara sistem"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => saveAnnouncer(display)}
+                        disabled={updateAnnouncerMutation.isPending}
+                      >
+                        Simpan Announcer
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => testAnnouncer(display)}
+                      >
+                        <Volume2 className="mr-2 h-4 w-4" />
+                        Tes Suara
+                      </Button>
+                      {display.settings?.announcer_sound_url && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => saveAnnouncer(display, { clearSound: true })}
+                        >
+                          Hapus File
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-3">

@@ -16,7 +16,8 @@ class VolumeUpdate implements ShouldBroadcastNow
     public function __construct(
         public int $displayId,
         public float $volume,
-        public ?int $videoId = null
+        public ?int $videoId = null,
+        public ?array $settings = null
     ) {
     }
 
@@ -39,6 +40,7 @@ class VolumeUpdate implements ShouldBroadcastNow
             'display_id' => $this->displayId,
             'volume' => $this->volume,
             'video_id' => $this->videoId,
+            'settings' => $this->settings,
         ];
     }
 }
