@@ -1,0 +1,64 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build/cache output
+.next/
+out/
+build/
+dist/
+coverage/
+.phpunit.cache/
+.phpunit.result.cache
+*.tsbuildinfo
+
+# Laravel runtime
+backend/vendor/
+backend/storage/*.key
+backend/storage/pail/
+backend/public/storage
+backend/public/build
+backend/public/hot
+backend/bootstrap/cache/*.php
+backend/database/database.sqlite
+
+# Frontend runtime
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+
+# Local tool state and logs
+.atlas/*.db
+.atlas/*.db-shm
+.atlas/*.db-wal
+.playwright-mcp/*.log
+.playwright-mcp/page-*.yml
+.serena/cache/
+test-results/
+*.log
+
+# Recovery snapshots/backups
+.git.recovery-*/
+backend.recovery-snapshot-*/
+metadata.recovery-snapshot-*/
+backup/
+.recovery-timestamp
+.metadata-recovery-snapshot
