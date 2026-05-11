@@ -178,7 +178,10 @@ function DisplayContent() {
     const queue = event.queue;
     if (!queue || queue.status !== "called" || !shouldAnnounceQueue(queue)) return;
 
-    const announcementKey = `${queue.id}:${queue.called_at ?? ""}`;
+    // announcement_id is a fresh UUID per broadcast (call or recall)
+    // Fall back to legacy key for events that predate this field
+    const announcementKey =
+      event.announcement_id ?? `${queue.id}:${queue.called_at ?? ""}`;
     if (lastAnnouncementRef.current === announcementKey) return;
 
     lastAnnouncementRef.current = announcementKey;
