@@ -66,7 +66,7 @@ function LayananPanel({
 
   useEffect(() => {
     const params: Record<string, string> = {
-      status: "called,serving",
+      status: "called,serving,completed",
       date: todayDate(),
     };
     if (counterId != null) params.counter_id = String(counterId);
@@ -84,9 +84,9 @@ function LayananPanel({
     );
   }, [queues]);
 
-  const current = sorted.find((q) => q.status === "serving") ?? sorted[0] ?? null;
+  const current = sorted.find((q) => q.status === "serving" || q.status === "called") ?? sorted[0] ?? null;
   const recent = sorted
-    .filter((q) => q.status === "called" && q.id !== current?.id)
+    .filter((q) => q.status === "completed" && q.id !== current?.id)
     .slice(0, 4);
 
   return (

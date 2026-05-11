@@ -203,6 +203,20 @@ export function useCallSingleQueue() {
   });
 }
 
+export function useRecallSkippedQueue() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (queueId: number) => {
+      const { data } = await api.post<ApiResponse<Queue>>(
+        `/queues/${queueId}/recall`,
+      );
+      return data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUEUES_KEY }),
+  });
+}
+
 export interface QueueStats {
   active_queues: number;
   waiting: number;

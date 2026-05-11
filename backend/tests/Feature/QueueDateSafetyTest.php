@@ -135,7 +135,53 @@ class QueueDateSafetyTest extends TestCase
         $response = $this->actingAs($user)->postJson("/api/v1/queues/{$queue->id}/recall");
 
         $response->assertStatus(400)
-            ->assertJsonPath('message', 'Queue is not in called or serving status');
+            ->assertJsonPath('message', 'Queue is not in called, serving, or skipped status');
+    }
+
+    public function test_recall_accepts_skipped_queue_today(): void
+    {
+        $counter = Counter::factory()->create();
+        $user = User::factory()->create([
+            'role' => 'loket',
+            'counter_id' => $counter->id,
+        ]);
+        $queue = Queue::create([
+            'ticket_number' => 'A001',
+            'service_type' => 'general',
+            'status' => 'skipped',
+            'counter_id' => $counter->id,
+            'called_at' => now()->subMinutes(10),
+            'completed_at' => now()->subMinutes(8),
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/api/v1/queues/{$queue->id}/recall");
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $queue->id)
+            ->assertJsonPath('data.status', 'called')
+            ->assertJsonPath('data.counter_id', $counter->id);
+    }
+
+    public function test_recall_rejects_old_day_skipped_queue(): void
+    {
+        $counter = Counter::factory()->create();
+        $user = User::factory()->create([
+            'role' => 'loket',
+            'counter_id' => $counter->id,
+        ]);
+        $queue = Queue::create([
+            'ticket_number' => 'A001',
+            'service_type' => 'general',
+            'status' => 'skipped',
+            'counter_id' => $counter->id,
+            'called_at' => now()->subDay(),
+        ]);
+        $queue->forceFill(['created_at' => now()->subDay()])->save();
+
+        $response = $this->actingAs($user)->postJson("/api/v1/queues/{$queue->id}/recall");
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Queue is not from today');
     }
 
     public function test_call_next_ignores_old_day_waiting_queue(): void

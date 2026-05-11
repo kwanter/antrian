@@ -221,9 +221,9 @@ class QueuesController extends Controller
             ], 422);
         }
 
-        if (!$queue->isCalled() && !$queue->isServing()) {
+        if (!$queue->isCalled() && !$queue->isServing() && !$queue->isSkipped()) {
             return response()->json([
-                'message' => 'Queue is not in called or serving status',
+                'message' => 'Queue is not in called, serving, or skipped status',
             ], 400);
         }
 

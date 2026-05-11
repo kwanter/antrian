@@ -124,10 +124,10 @@ class LayananController extends Controller
         $query = $layanan->queues()
             ->with('counter');
 
-        $allowedStatuses = ['called', 'serving'];
+        $allowedStatuses = ['called', 'serving', 'completed'];
         $statuses = $request->filled('status')
             ? array_values(array_intersect(array_filter(explode(',', (string) $request->query('status'))), $allowedStatuses))
-            : $allowedStatuses;
+            : ['called', 'serving'];
 
         if ($statuses === []) {
             $query->whereRaw('1 = 0');
