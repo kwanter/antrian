@@ -158,6 +158,7 @@ export interface QueueUpdateEvent {
 }
 
 export interface DisplaySyncEvent {
+  announcement_id?: string;
   current_queue?: Queue | null;
   recent_queues?: Queue[];
   video_settings?: {

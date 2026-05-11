@@ -8,13 +8,17 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 class QueueCalled implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public string $announcementId;
+
     public function __construct(public Queue $queue)
     {
+        $this->announcementId = Str::uuid()->toString();
     }
 
     public function broadcastOn(): array
@@ -34,6 +38,7 @@ class QueueCalled implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
+            'announcement_id' => $this->announcementId,
             'queue' => [
                 'id' => $this->queue->id,
                 'ticket_number' => $this->queue->ticket_number,
