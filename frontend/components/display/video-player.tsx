@@ -15,6 +15,7 @@ export function VideoPlayer({ videos = [], volume }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const playlistRef = useRef(videos);
   const isLoadingRef = useRef(false);
+  const hasUserInteractedRef = useRef(false);
   const clampedVolume = Math.min(100, Math.max(0, volume));
   const isMuted = clampedVolume === 0;
   const playbackVolumeRef = useRef({ clampedVolume, isMuted });
@@ -24,15 +25,39 @@ export function VideoPlayer({ videos = [], volume }: VideoPlayerProps) {
     playlistRef.current = videos;
   }, [videos]);
 
+  // Update volume on existing video element
   useEffect(() => {
     playbackVolumeRef.current = { clampedVolume, isMuted };
     const video = videoRef.current;
 
-    if (video) {
+    if (video && hasUserInteractedRef.current) {
       video.volume = clampedVolume / 100;
       video.muted = isMuted;
     }
   }, [clampedVolume, isMuted]);
+
+  // Track user interaction for autoplay policy
+  useEffect(() => {
+    const markInteracted = () => {
+      hasUserInteractedRef.current = true;
+      // Apply real volume after first interaction
+      const video = videoRef.current;
+      if (video) {
+        video.volume = playbackVolumeRef.current.clampedVolume / 100;
+        video.muted = playbackVolumeRef.current.isMuted;
+      }
+    };
+
+    document.addEventListener("click", markInteracted, { once: true });
+    document.addEventListener("touchstart", markInteracted, { once: true });
+    document.addEventListener("keydown", markInteracted, { once: true });
+
+    return () => {
+      document.removeEventListener("click", markInteracted);
+      document.removeEventListener("touchstart", markInteracted);
+      document.removeEventListener("keydown", markInteracted);
+    };
+  }, []);
 
   // Handle video ended - play next in playlist
   const handleVideoEnded = useCallback(() => {
@@ -54,25 +79,34 @@ export function VideoPlayer({ videos = [], volume }: VideoPlayerProps) {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
 
+    // Start muted for autoplay compliance, unmute after play starts
     video.muted = true;
     video.load();
 
-    // Play immediately after load
-    video.play()
-      .then(() => {
-        const { clampedVolume: currentVolume, isMuted: currentMuted } = playbackVolumeRef.current;
-        video.volume = currentVolume / 100;
-        video.muted = currentMuted;
-        setIsPlaying(true);
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") {
-          console.warn("Video play failed:", error.message);
-        }
-      })
-      .finally(() => {
-        isLoadingRef.current = false;
-      });
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          // Successfully playing — apply real volume
+          if (hasUserInteractedRef.current || playbackVolumeRef.current.isMuted) {
+            video.volume = playbackVolumeRef.current.clampedVolume / 100;
+            video.muted = playbackVolumeRef.current.isMuted;
+          }
+          // If no user interaction yet, stay muted (autoplay works)
+          // Volume will be applied on first user interaction
+          setIsPlaying(true);
+        })
+        .catch((error) => {
+          if (error.name !== "AbortError") {
+            console.warn("Video play failed:", error.message);
+          }
+        })
+        .finally(() => {
+          isLoadingRef.current = false;
+        });
+    } else {
+      isLoadingRef.current = false;
+    }
 
     return () => {
       isLoadingRef.current = false;
@@ -134,11 +168,18 @@ export function VideoPlayer({ videos = [], volume }: VideoPlayerProps) {
         <video
           ref={videoRef}
           className="w-full h-full object-contain bg-black"
-          muted={isMuted}
+          muted
           playsInline
+          autoPlay
           onEnded={handleVideoEnded}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
+          onCanPlay={() => {
+            // Ensure autoplay starts — browser allows muted autoplay
+            const video = videoRef.current;
+            if (video && !video.paused && !video.ended) return;
+            video?.play().catch(() => {});
+          }}
         >
           {currentVideo && <source src={currentVideo.file_url} type="video/mp4" />}
         </video>
