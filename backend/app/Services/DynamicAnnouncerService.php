@@ -40,7 +40,16 @@ class DynamicAnnouncerService
         $espeak->setTimeout(20);
         $espeak->mustRun();
 
-        $ffmpeg = new Process(['ffmpeg', '-y', '-i', $wav, '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', $mp4]);
+        $ffmpeg = new Process([
+            'ffmpeg', '-y',
+            '-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=25',
+            '-i', $wav,
+            '-shortest',
+            '-c:v', 'libx264', '-profile:v', 'baseline', '-level', '3.0', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '128k',
+            '-movflags', '+faststart',
+            $mp4,
+        ]);
         $ffmpeg->setTimeout(30);
         $ffmpeg->mustRun();
 
