@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Volume2, Video as VideoIcon } from "lucide-react";
+import { Pencil, Plus, Volume2, Video as VideoIcon } from "lucide-react";
 
 export default function DisplaysPage() {
   const queryClient = useQueryClient();
@@ -35,6 +35,10 @@ export default function DisplaysPage() {
   const [selectedDisplayId, setSelectedDisplayId] = useState<number | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [displayLocation, setDisplayLocation] = useState("");
+  const [editDisplayOpen, setEditDisplayOpen] = useState(false);
+  const [editingDisplay, setEditingDisplay] = useState<Display | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editDisplayLocation, setEditDisplayLocation] = useState("");
   const [videoTitle, setVideoTitle] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [announcerFiles, setAnnouncerFiles] = useState<Record<number, File | null>>({});
@@ -79,6 +83,27 @@ export default function DisplaysPage() {
     },
     onError: () => {
       toast.error("Gagal menghapus display");
+    },
+  });
+
+  const updateDisplay = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name: string; location: string } }) =>
+      api.put(`/displays/${id}`, data),
+    onSuccess: (response) => {
+      const updatedDisplay = response.data.data as Display;
+      queryClient.setQueryData<Display[]>(["displays"], (current) =>
+        current?.map((display) =>
+          display.id === updatedDisplay.id ? updatedDisplay : display
+        ) ?? []
+      );
+      toast.success("Display berhasil diperbarui");
+      setEditDisplayOpen(false);
+      setEditingDisplay(null);
+      setEditDisplayName("");
+      setEditDisplayLocation("");
+    },
+    onError: () => {
+      toast.error("Gagal memperbarui display");
     },
   });
 
@@ -260,6 +285,22 @@ export default function DisplaysPage() {
   const handleAddDisplay = (e: React.FormEvent) => {
     e.preventDefault();
     createDisplay.mutate({ name: displayName, location: displayLocation });
+  };
+
+  const openEditDisplayDialog = (display: Display) => {
+    setEditingDisplay(display);
+    setEditDisplayName(display.name);
+    setEditDisplayLocation(display.location);
+    setEditDisplayOpen(true);
+  };
+
+  const handleEditDisplay = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDisplay) return;
+    updateDisplay.mutate({
+      id: editingDisplay.id,
+      data: { name: editDisplayName, location: editDisplayLocation },
+    });
   };
 
   const handleAddVideo = (e: React.FormEvent) => {
@@ -513,7 +554,15 @@ export default function DisplaysPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-end pt-2">
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDisplayDialog(display)}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit Display
+                    </Button>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -579,6 +628,43 @@ export default function DisplaysPage() {
             </div>
             <Button type="submit" className="w-full" disabled={!videoFile || !videoTitle || !selectedDisplayId || createVideo.isPending}>
               {createVideo.isPending ? "Mengupload..." : "Simpan"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDisplayOpen} onOpenChange={setEditDisplayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Display</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditDisplay} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-name">Nama Display</Label>
+              <Input
+                id="edit-display-name"
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="Contoh: Display Utama"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-location">Deskripsi / Lokasi</Label>
+              <Input
+                id="edit-display-location"
+                value={editDisplayLocation}
+                onChange={(e) => setEditDisplayLocation(e.target.value)}
+                placeholder="Contoh: Lobby Utama"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!editDisplayName || !editDisplayLocation || updateDisplay.isPending}
+            >
+              {updateDisplay.isPending ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </form>
         </DialogContent>
