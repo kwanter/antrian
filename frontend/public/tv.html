@@ -7,34 +7,73 @@
   <title>Display Antrian TV</title>
   <style>
     html,body{margin:0;height:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-    .wrap{height:100%;display:flex;gap:14px;padding:14px;box-sizing:border-box;background:#dbeafe;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
-    .video{width:60%;background:#020617;border-radius:22px;overflow:hidden;position:relative;box-shadow:0 20px 50px rgba(15,23,42,.35)}
-    video{width:100%;height:100%;object-fit:contain;background:#020617}
-    .novideo{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:34px;font-weight:bold;padding:30px;box-sizing:border-box}
-    .panel{width:40%;display:flex;flex-direction:column;gap:12px;overflow:hidden}
-    .display-title{background:#0f172a;color:#fff;border-radius:16px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 20px rgba(15,23,42,.22)}
-    .display-title b{font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.display-title span{font-size:12px;color:#93c5fd;margin-left:10px;white-space:nowrap}
-    .queue-list{flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden}
-    .card{background:#fff;color:#0f172a;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(15,23,42,.16);display:flex;flex-direction:column;min-height:0;border:2px solid #dbeafe}
-    .service{background:#1d4ed8;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .service-name{font-size:18px;line-height:1.1;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.service-code{font-size:13px;font-weight:900;background:rgba(255,255,255,.18);border-radius:999px;padding:5px 9px;white-space:nowrap}
-    .main{flex:1;display:flex;align-items:center;gap:10px;padding:12px;min-height:0}.ticket{background:#f59e0b;color:#fff;font-size:50px;line-height:1;font-weight:900;border-radius:16px;padding:14px 16px;min-width:126px;text-align:center;box-shadow:0 8px 18px rgba(245,158,11,.35)}
-    .meta{flex:1;min-width:0}.loket{display:inline-block;background:#dcfce7;color:#166534;border:2px solid #86efac;border-radius:999px;padding:8px 12px;font-size:18px;font-weight:900;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}.status{margin-top:8px;color:#64748b;font-size:14px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .recent{border-top:1px solid #e2e8f0;background:#f8fafc;padding:6px 10px;min-height:32px;color:#334155;font-size:13px;overflow:hidden}.recent-row{display:flex;justify-content:space-between;background:#fff;border-radius:8px;padding:4px 8px;margin:2px 0}.recent-row b{color:#0f172a}.recent-row span{color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:8px}
-    .clock{background:#1e293b;border-radius:16px;padding:12px 16px;font-size:18px;display:flex;justify-content:space-between;align-items:center;color:#fff;box-shadow:0 8px 18px rgba(15,23,42,.22)}.clock strong{font-size:24px;letter-spacing:1px}.sync{font-size:11px;color:#94a3b8;margin-left:8px}
-    .start{position:fixed;inset:0;background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8,#312e81);z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}.start h1{font-size:64px;margin:0 0 20px}.start p{font-size:28px;margin:0;color:#bfdbfe}.play{font-size:88px;margin-bottom:24px}
+    .wrap{height:100%;display:flex;flex-direction:column;gap:10px;padding:12px;box-sizing:border-box;background:#dbeafe;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
+    .topbar{background:#0f172a;color:#fff;border-radius:14px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(15,23,42,.22);flex:0 0 auto}
+    .topbar .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+    .topbar b{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .topbar .loc{font-size:13px;color:#93c5fd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .topbar .date{font-size:15px;color:#cbd5e1;white-space:nowrap}
+    .video{flex:1 1 auto;background:#020617;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 18px 44px rgba(15,23,42,.35);min-height:0}
+    video{width:100%;height:100%;object-fit:contain;background:#020617;display:block}
+    .novideo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:32px;font-weight:bold;padding:30px;box-sizing:border-box}
+    .queue-row{flex:0 0 34%;display:flex;flex-direction:row;gap:10px;overflow:hidden;min-height:0}
+    .card{flex:1 1 0;min-width:0;background:#fff;color:#0f172a;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(15,23,42,.16);display:flex;flex-direction:column;border:2px solid #dbeafe}
+    .service{background:#1d4ed8;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
+    .service-name{font-size:18px;line-height:1.1;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+    .service-code{font-size:13px;font-weight:900;background:rgba(255,255,255,.22);border-radius:999px;padding:5px 10px;white-space:nowrap;flex:0 0 auto}
+    .body{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;min-height:0}
+    .ticket{background:#f59e0b;color:#fff;font-size:52px;line-height:1;font-weight:900;border-radius:14px;padding:10px 16px;min-width:120px;text-align:center;box-shadow:0 6px 16px rgba(245,158,11,.35);white-space:nowrap}
+    .loket{display:inline-block;background:#dcfce7;color:#166534;border:2px solid #86efac;border-radius:999px;padding:6px 12px;font-size:16px;font-weight:900;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;text-align:center}
+    .status{color:#64748b;font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+    .status.calling{color:#b45309}
+    .footer{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1e293b;color:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 6px 18px rgba(15,23,42,.22)}
+    .footer .time{font-size:24px;font-weight:900;letter-spacing:1px}
+    .footer .sync{font-size:12px;color:#94a3b8}
+    .start{position:fixed;inset:0;background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8,#312e81);z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+    .start h1{font-size:60px;margin:0 0 20px}
+    .start p{font-size:26px;margin:0;color:#bfdbfe}
+    .play{font-size:84px;margin-bottom:24px}
     .err{position:fixed;left:10px;top:10px;background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:8px;font-size:13px;z-index:20;max-width:80%}
-    .mode-few .card{flex:1}.mode-few .service-name{font-size:22px}.mode-few .ticket{font-size:72px;min-width:168px}.mode-few .loket{font-size:24px}.mode-few .status{font-size:18px}.mode-few .recent{font-size:16px;min-height:58px}
-    .mode-normal .card{height:24.2%}.mode-normal .ticket{font-size:48px;min-width:118px}.mode-normal .loket{font-size:17px}.mode-normal .recent{display:none}
-    .mode-many .queue-list{gap:8px}.mode-many .card{height:auto;min-height:78px}.mode-many .service{float:left;width:42%;height:100%;box-sizing:border-box;display:block;padding:12px}.mode-many .service-name{font-size:16px;white-space:normal;max-height:38px}.mode-many .service-code{display:inline-block;margin-top:8px}.mode-many .main{padding:10px}.mode-many .ticket{font-size:36px;min-width:92px;padding:11px 12px}.mode-many .loket{font-size:15px;padding:6px 10px}.mode-many .status{font-size:12px;margin-top:5px}.mode-many .recent{display:none}
+
+    /* adaptive by card count */
+    .mode-few .ticket{font-size:72px;min-width:160px;padding:14px 20px}
+    .mode-few .service-name{font-size:22px}
+    .mode-few .loket{font-size:20px;padding:8px 14px}
+    .mode-few .status{font-size:16px}
+
+    .mode-normal .ticket{font-size:54px;min-width:130px}
+    .mode-normal .service-name{font-size:18px}
+    .mode-normal .loket{font-size:16px}
+
+    .mode-many .service{padding:8px 10px}
+    .mode-many .service-name{font-size:15px}
+    .mode-many .service-code{font-size:11px;padding:3px 8px}
+    .mode-many .ticket{font-size:34px;min-width:88px;padding:8px 10px}
+    .mode-many .loket{font-size:13px;padding:4px 8px}
+    .mode-many .status{font-size:11px}
+
+    /* when many layanan, allow two-row queue area if needed */
+    .mode-many .queue-row{flex-wrap:wrap;flex:0 0 38%}
+    .mode-many .card{flex:1 1 calc(16.6% - 10px);min-width:170px}
   </style>
 </head>
 <body class="mode-normal">
   <div id="start" class="start"><div><div class="play">▶</div><h1>Sistem Antrian</h1><p>Tekan OK / ENTER untuk mulai</p></div></div>
   <div id="err" class="err" style="display:none"></div>
   <div class="wrap">
-    <div class="video"><video id="vid" muted autoplay playsinline></video><div id="novideo" class="novideo">Memuat video...</div></div>
-    <div class="panel"><div class="display-title"><b id="displayName">Display Antrian</b><span id="sync">sync: -</span></div><div id="grid" class="queue-list"></div><div class="clock"><span id="date"></span><strong id="time"></strong></div></div>
+    <div class="topbar">
+      <div class="brand"><b id="displayName">Display Antrian</b><span class="loc" id="displayLoc"></span></div>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="video">
+      <video id="vid" muted autoplay playsinline></video>
+      <div id="novideo" class="novideo">Memuat video...</div>
+    </div>
+    <div id="grid" class="queue-row"></div>
+    <div class="footer">
+      <div class="time" id="time">--:--:--</div>
+      <div class="sync" id="sync">sync: -</div>
+    </div>
   </div>
 <script>
 (function(){
@@ -42,26 +81,28 @@
   function $(id){return document.getElementById(id)}
   function showErr(m){var e=$('err'); e.style.display='block'; e.innerHTML=m}
   function clearErr(){var e=$('err'); e.style.display='none'; e.innerHTML=''}
-  function setSync(){var d=new Date(); $('sync').innerHTML='sync: '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
   function pad(n){return n<10?'0'+n:''+n}
+  function setSync(){var d=new Date(); $('sync').innerHTML='sync: '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
   function today(){var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function getJSON(url, cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
   function text(v){return (v===null||v===undefined)?'':String(v)}
   function esc(v){return text(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function start(){started=true; $('start').style.display='none'; var v=$('vid'); v.muted=false; v.play&&v.play();}
-  document.onkeydown=function(e){e=e||window.event; var k=e.key||e.keyCode; if(k==='Enter'||k===' '||k==='OK'||k===13||k===32) start()}; $('start').onclick=start;
-  function tickClock(){var d=new Date(); $('date').innerHTML=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString(); $('time').innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
+  function start(){started=true; $('start').style.display='none'; var v=$('vid'); v.muted=false; var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
+  document.onkeydown=function(e){e=e||window.event; var k=e.key||e.keyCode; if(k==='Enter'||k===' '||k==='OK'||k===13||k===32) start()}
+  $('start').onclick=start
+  function tickClock(){var d=new Date(); var ds=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString(); $('date').innerHTML=ds; $('time').innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
   setInterval(tickClock,1000); tickClock();
-  function loadDisplay(){getJSON(API+'/displays',function(err,res){if(err){showErr('Gagal display: '+err.message);return} var arr=res.data||[]; display=arr[0]||null; for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}} if(display){$('displayName').innerHTML=esc(display.name)+' <span style="font-size:13px;color:#bfdbfe">'+esc(display.location||'')+'</span>'} loadVideos(); loadLayanans();})}
-  function loadVideos(){if(!display)return; getJSON(API+'/videos?display_id='+display.id,function(err,res){if(err){$('novideo').innerHTML='Video gagal dimuat';return} videos=res.data||[]; if(videos.length){$('novideo').style.display='none'; playVideo(0)} else {$('novideo').innerHTML='Tidak ada video aktif'}})}
+  function loadDisplay(){getJSON(API+'/displays',function(err,res){if(err){showErr('Gagal display: '+err.message);return} var arr=res.data||[]; display=arr[0]||null; for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}} if(display){$('displayName').innerHTML=esc(display.name); $('displayLoc').innerHTML=esc(display.location||'')} loadVideos(); loadLayanans()})}
+  function loadVideos(){if(!display)return; getJSON(API+'/videos?display_id='+display.id,function(err,res){if(err){$('novideo').innerHTML='Video gagal dimuat';return} videos=res.data||[]; if(videos.length){$('novideo').style.display='none'; playVideo(0)} else {$('novideo').style.display='flex'; $('novideo').innerHTML='Tidak ada video aktif'}})}
   function playVideo(i){if(!videos.length)return; videoIndex=i%videos.length; var v=$('vid'); v.src=videos[videoIndex].file_url; v.muted=!started; v.load(); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
-  $('vid').onended=function(){playVideo(videoIndex+1)}; $('vid').onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)};
+  $('vid').onended=function(){playVideo(videoIndex+1)}
+  $('vid').onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)}
   function modeClass(n){return n<=2?'mode-few':(n>4?'mode-many':'mode-normal')}
   function defaultLoket(l){if(l&&l.counter&&l.counter.name)return l.counter.name; if(display&&display.settings&&display.settings.counter_id)return 'Loket terpilih'; return 'Semua loket'}
   function loadLayanans(){getJSON(API+'/layanans?active_only=1',function(err,res){if(err){showErr('Gagal layanan: '+err.message);return} clearErr(); renderLayanans(res.data||[])})}
-  function renderLayanans(list){var g=$('grid'); g.innerHTML=''; document.body.className=modeClass(list.length); for(var i=0;i<list.length;i++){(function(l){var card=document.createElement('div'); card.className='card'; card.innerHTML='<div class="service"><div class="service-name">'+esc(l.name)+'</div><div class="service-code">'+esc(l.code)+'</div></div><div class="main"><div class="ticket js-ticket">-</div><div class="meta"><div class="loket js-loket">'+esc(defaultLoket(l))+'</div><div class="status js-status">Menunggu antrian</div></div></div><div class="recent js-recent"></div>'; g.appendChild(card); updateQueue(l,card); setInterval(function(){updateQueue(l,card)},3000)})(list[i])}}
-  function updateQueue(l,card){var url=API+'/layanans/'+l.id+'/queues?status=called,serving,completed&date='+today(); var cid=display&&display.settings?display.settings.counter_id:null; if(cid)url+='&counter_id='+cid; getJSON(url,function(err,res){if(err)return; setSync(); var q=res.data||[]; q.sort(function(a,b){return new Date(b.called_at||b.created_at)-new Date(a.called_at||a.created_at)}); var cur=null; for(var i=0;i<q.length;i++){if(q[i].status==='serving'||q[i].status==='called'){cur=q[i];break}} if(!cur)cur=q[0]; var loket=cur&&cur.counter&&cur.counter.name?cur.counter.name:defaultLoket(l); card.getElementsByClassName('js-ticket')[0].innerHTML=cur?esc(cur.ticket_number):'-'; card.getElementsByClassName('js-loket')[0].innerHTML=esc(loket); card.getElementsByClassName('js-status')[0].innerHTML=cur?(cur.status==='completed'?'Terakhir selesai':'Sedang dipanggil'):'Menunggu antrian'; var recent=card.getElementsByClassName('js-recent')[0]; recent.innerHTML=''; var n=0; for(var j=0;j<q.length&&n<2;j++){if(cur&&q[j].id===cur.id)continue; var d=document.createElement('div'); d.className='recent-row'; d.innerHTML='<b>'+esc(q[j].ticket_number)+'</b><span>'+(q[j].counter?esc(q[j].counter.name):esc(defaultLoket(l)))+'</span>'; recent.appendChild(d); n++}})}
-  loadDisplay();
+  function renderLayanans(list){var g=$('grid'); g.innerHTML=''; document.body.className=modeClass(list.length); for(var i=0;i<list.length;i++){(function(l){var card=document.createElement('div'); card.className='card'; card.innerHTML='<div class="service"><div class="service-name">'+esc(l.name)+'</div><div class="service-code">'+esc(l.code)+'</div></div><div class="body"><div class="ticket js-ticket">-</div><div class="loket js-loket">'+esc(defaultLoket(l))+'</div><div class="status js-status">Menunggu antrian</div></div>'; g.appendChild(card); updateQueue(l,card); setInterval(function(){updateQueue(l,card)},3000)})(list[i])}}
+  function updateQueue(l,card){var url=API+'/layanans/'+l.id+'/queues?status=called,serving,completed&date='+today(); var cid=display&&display.settings?display.settings.counter_id:null; if(cid)url+='&counter_id='+cid; getJSON(url,function(err,res){if(err)return; setSync(); var q=res.data||[]; q.sort(function(a,b){return new Date(b.called_at||b.created_at)-new Date(a.called_at||a.created_at)}); var cur=null; for(var i=0;i<q.length;i++){if(q[i].status==='serving'||q[i].status==='called'){cur=q[i];break}} if(!cur)cur=q[0]; var loket=cur&&cur.counter&&cur.counter.name?cur.counter.name:defaultLoket(l); var st=card.getElementsByClassName('js-status')[0]; card.getElementsByClassName('js-ticket')[0].innerHTML=cur?esc(cur.ticket_number):'-'; card.getElementsByClassName('js-loket')[0].innerHTML=esc(loket); st.className='status js-status'+(cur&&(cur.status==='serving'||cur.status==='called')?' calling':''); st.innerHTML=cur?(cur.status==='completed'?'Terakhir selesai':'Sedang dipanggil'):'Menunggu antrian'})}
+  loadDisplay()
 })();
 </script>
 </body>
