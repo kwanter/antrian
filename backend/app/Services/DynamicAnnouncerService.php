@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Queue;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
@@ -30,8 +31,10 @@ class DynamicAnnouncerService
         }
 
         Storage::disk('public')->makeDirectory('announcers/dynamic');
+        $directory = storage_path('app/public/announcers/dynamic');
+        File::ensureDirectoryExists($directory, 0775, true);
 
-        $wav = storage_path("app/public/announcers/dynamic/{$safeKey}.wav");
+        $wav = "{$directory}/{$safeKey}.wav";
         $mp3 = storage_path("app/public/{$relativeMp3}");
 
         $espeak = new Process(['espeak-ng', '-v', 'id', '-s', '145', '-p', '45', '-w', $wav, $text]);
