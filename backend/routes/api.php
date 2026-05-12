@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\KioskStationsController;
 use App\Http\Controllers\Api\LayananController;
 use App\Http\Controllers\Api\PrinterProfilesController;
 use App\Http\Controllers\Api\QueuesController;
+use App\Http\Controllers\Api\TtsController;
 use App\Http\Controllers\Api\UsersController;
 use App\Http\Controllers\Api\VideosController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/layanans', [LayananController::class, 'index']);
     Route::get('/layanans/{layanan}', [LayananController::class, 'show']);
     Route::get('/layanans/{layanan}/queues', [LayananController::class, 'queues']);
+
+    // TTS — public for TV display announcer
+    Route::get('/tts/queue/{queue}', [TtsController::class, 'queue']);
 });
 
 // Protected routes (requires Sanctum authentication)
