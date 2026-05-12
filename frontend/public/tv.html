@@ -6,17 +6,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Display Antrian TV</title>
   <style>
-    html,body{margin:0;height:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-    .wrap{height:100%;display:flex;flex-direction:column;gap:10px;padding:12px;box-sizing:border-box;background:#dbeafe;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
-    .topbar{background:#0f172a;color:#fff;border-radius:14px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(15,23,42,.22);flex:0 0 auto}
+    html,body{margin:0;height:100%;width:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+    .wrap{position:absolute;top:0;left:0;right:0;bottom:0;display:block;padding:10px;box-sizing:border-box;background:#dbeafe;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
+    .topbar{position:absolute;left:10px;right:10px;top:10px;height:8vh;min-height:54px;background:#0f172a;color:#fff;border-radius:14px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(15,23,42,.22);box-sizing:border-box}
     .topbar .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
     .topbar b{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .topbar .loc{font-size:13px;color:#93c5fd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .topbar .date{font-size:15px;color:#cbd5e1;white-space:nowrap}
-    .video{flex:1 1 auto;background:#020617;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 18px 44px rgba(15,23,42,.35);min-height:0}
-    video{width:100%;height:100%;object-fit:contain;background:#020617;display:block}
-    .novideo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:32px;font-weight:bold;padding:30px;box-sizing:border-box}
-    .queue-row{flex:0 0 34%;display:flex;flex-direction:row;gap:10px;overflow:hidden;min-height:0}
+    .video{position:absolute;left:10px;right:10px;top:calc(8vh + 20px);height:54vh;background:#020617;border-radius:20px;overflow:hidden;box-shadow:0 18px 44px rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center}
+    video{max-width:100%;max-height:100%;width:auto;height:auto;background:#020617;display:block}
+    .novideo{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:32px;font-weight:bold;padding:30px;box-sizing:border-box}
+    .queue-row{position:absolute;left:10px;right:10px;top:calc(8vh + 54vh + 30px);bottom:calc(7vh + 20px);display:flex;flex-direction:row;gap:10px;overflow:hidden}
     .card{flex:1 1 0;min-width:0;background:#fff;color:#0f172a;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(15,23,42,.16);display:flex;flex-direction:column;border:2px solid #dbeafe}
     .service{background:#1d4ed8;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
     .service-name{font-size:18px;line-height:1.1;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -26,7 +26,7 @@
     .loket{display:inline-block;background:#dcfce7;color:#166534;border:2px solid #86efac;border-radius:999px;padding:6px 12px;font-size:16px;font-weight:900;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;text-align:center}
     .status{color:#64748b;font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
     .status.calling{color:#b45309}
-    .footer{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1e293b;color:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 6px 18px rgba(15,23,42,.22)}
+    .footer{position:absolute;left:10px;right:10px;bottom:10px;height:7vh;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1e293b;color:#fff;border-radius:14px;padding:0 16px;box-shadow:0 6px 18px rgba(15,23,42,.22);box-sizing:border-box}
     .footer .time{font-size:24px;font-weight:900;letter-spacing:1px}
     .footer .sync{font-size:12px;color:#94a3b8}
     .start{position:fixed;inset:0;background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8,#312e81);z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
@@ -53,7 +53,7 @@
     .mode-many .status{font-size:11px}
 
     /* when many layanan, allow two-row queue area if needed */
-    .mode-many .queue-row{flex-wrap:wrap;flex:0 0 38%}
+    .mode-many .queue-row{flex-wrap:wrap;bottom:calc(7vh + 20px)}
     .mode-many .card{flex:1 1 calc(16.6% - 10px);min-width:170px}
   </style>
 </head>
@@ -94,8 +94,11 @@
   setInterval(tickClock,1000); tickClock();
   function loadDisplay(){getJSON(API+'/displays',function(err,res){if(err){showErr('Gagal display: '+err.message);return} var arr=res.data||[]; display=arr[0]||null; for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}} if(display){$('displayName').innerHTML=esc(display.name); $('displayLoc').innerHTML=esc(display.location||'')} loadVideos(); loadLayanans()})}
   function loadVideos(){if(!display)return; getJSON(API+'/videos?display_id='+display.id,function(err,res){if(err){$('novideo').innerHTML='Video gagal dimuat';return} videos=res.data||[]; if(videos.length){$('novideo').style.display='none'; playVideo(0)} else {$('novideo').style.display='flex'; $('novideo').innerHTML='Tidak ada video aktif'}})}
-  function playVideo(i){if(!videos.length)return; videoIndex=i%videos.length; var v=$('vid'); v.src=videos[videoIndex].file_url; v.muted=!started; v.load(); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
+  function fitVideo(){var v=$('vid'), box=v.parentNode; if(!v.videoWidth||!v.videoHeight)return; var bw=box.clientWidth||1, bh=box.clientHeight||1, vr=v.videoWidth/v.videoHeight, br=bw/bh; if(vr>br){v.style.width='100%';v.style.height='auto'}else{v.style.width='auto';v.style.height='100%'}}
+  function playVideo(i){if(!videos.length)return; videoIndex=i%videos.length; var v=$('vid'); v.removeAttribute('style'); v.src=videos[videoIndex].file_url; v.muted=!started; v.load(); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
   $('vid').onended=function(){playVideo(videoIndex+1)}
+  $('vid').onloadedmetadata=fitVideo
+  if(window.addEventListener)window.addEventListener('resize',fitVideo)
   $('vid').onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)}
   function modeClass(n){return n<=2?'mode-few':(n>4?'mode-many':'mode-normal')}
   function defaultLoket(l){if(l&&l.counter&&l.counter.name)return l.counter.name; if(display&&display.settings&&display.settings.counter_id)return 'Loket terpilih'; return 'Semua loket'}
