@@ -24,38 +24,22 @@ class DynamicAnnouncerService
     public function audioUrlForText(string $text, string $key): string
     {
         $safeKey = preg_replace('/[^a-zA-Z0-9_-]/', '-', $key) ?: Str::uuid()->toString();
-        $relativeMp4 = "announcers/dynamic/{$safeKey}.mp4";
+        $relativeWav = "announcers/dynamic/{$safeKey}.wav";
 
-        if (Storage::disk('public')->exists($relativeMp4)) {
-            return "/storage/{$relativeMp4}";
+        if (Storage::disk('public')->exists($relativeWav)) {
+            return "/storage/{$relativeWav}";
         }
 
         $directory = storage_path('app/public/announcers/dynamic');
         File::ensureDirectoryExists($directory, 0775, true);
 
         $wav = "{$directory}/{$safeKey}.wav";
-        $mp4 = storage_path("app/public/{$relativeMp4}");
 
         $espeak = new Process(['espeak-ng', '-v', 'id', '-s', '145', '-p', '45', '-w', $wav, $text]);
         $espeak->setTimeout(20);
         $espeak->mustRun();
 
-        $ffmpeg = new Process([
-            'ffmpeg', '-y',
-            '-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=25',
-            '-i', $wav,
-            '-shortest',
-            '-c:v', 'libx264', '-profile:v', 'baseline', '-level', '3.0', '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac', '-b:a', '128k',
-            '-movflags', '+faststart',
-            $mp4,
-        ]);
-        $ffmpeg->setTimeout(30);
-        $ffmpeg->mustRun();
-
-        @unlink($wav);
-
-        return "/storage/{$relativeMp4}";
+        return "/storage/{$relativeWav}";
     }
 
     private function speakableTicket(?string $ticket): string

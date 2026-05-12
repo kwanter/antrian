@@ -4,120 +4,356 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Display Antrian TV</title>
+  <title>Antrian Display</title>
   <style>
-    html,body{margin:0;height:100%;width:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-    .wrap{position:absolute;top:0;left:0;right:0;bottom:0;display:block;padding:10px;box-sizing:border-box;background:#dbeafe;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
-    .topbar{position:absolute;left:10px;right:10px;top:10px;height:8vh;min-height:54px;background:#0f172a;color:#fff;border-radius:14px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 6px 18px rgba(15,23,42,.22);box-sizing:border-box}
-    .topbar .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
-    .topbar b{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .topbar .loc{font-size:13px;color:#93c5fd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .topbar .date{font-size:15px;color:#cbd5e1;white-space:nowrap}
-    .video{position:absolute;left:10px;right:10px;top:calc(8vh + 20px);height:54vh;background:#020617;border-radius:20px;overflow:hidden;box-shadow:0 18px 44px rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center}
-    video{max-width:100%;max-height:100%;width:auto;height:auto;background:#020617;display:block}
-    .novideo{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:32px;font-weight:bold;padding:30px;box-sizing:border-box}
-    .queue-row{position:absolute;left:10px;right:10px;top:calc(8vh + 54vh + 30px);bottom:calc(7vh + 20px);display:flex;flex-direction:row;gap:10px;overflow:hidden}
-    .card{flex:1 1 0;min-width:0;background:#fff;color:#0f172a;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(15,23,42,.16);display:flex;flex-direction:column;border:2px solid #dbeafe}
-    .service{background:#1d4ed8;color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto}
-    .service-name{font-size:18px;line-height:1.1;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-    .service-code{font-size:13px;font-weight:900;background:rgba(255,255,255,.22);border-radius:999px;padding:5px 10px;white-space:nowrap;flex:0 0 auto}
-    .body{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;min-height:0}
-    .ticket{background:#f59e0b;color:#fff;font-size:52px;line-height:1;font-weight:900;border-radius:14px;padding:10px 16px;min-width:120px;text-align:center;box-shadow:0 6px 16px rgba(245,158,11,.35);white-space:nowrap}
-    .loket{display:inline-block;background:#dcfce7;color:#166534;border:2px solid #86efac;border-radius:999px;padding:6px 12px;font-size:16px;font-weight:900;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;text-align:center}
-    .status{color:#64748b;font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
-    .status.calling{color:#b45309}
-    .footer{position:absolute;left:10px;right:10px;bottom:10px;height:7vh;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1e293b;color:#fff;border-radius:14px;padding:0 16px;box-shadow:0 6px 18px rgba(15,23,42,.22);box-sizing:border-box}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+    .topbar{position:absolute;top:0;left:0;right:0;height:10vh;min-height:60px;display:flex;align-items:center;padding:0 20px;background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);border-bottom:2px solid #1d4ed8;z-index:10}
+    .topbar .logo{font-size:28px;font-weight:900;margin-right:24px;color:#60a5fa;flex-shrink:0}
+    .topbar .name{font-size:22px;font-weight:700;margin-right:16px}
+    .topbar .loc{font-size:14px;color:#94a3b8}
+    .topbar .date-wrap{flex:1;text-align:right}
+    .topbar .date{font-size:15px;color:#94a3b8}
+    .topbar .time{font-size:22px;font-weight:900;color:#60a5fa}
+    .video-wrap{position:absolute;top:10vh;left:10px;right:10px;bottom:10px;border-radius:12px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+    video{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+    .novideo{display:none;align-items:center;justify-content:center;font-size:26px;color:#64748b;width:100%;height:100%}
+    .start-overlay{position:absolute;top:10vh;left:10px;right:10px;bottom:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,23,42,.88);z-index:5;cursor:pointer;border-radius:12px;border:3px solid #1d4ed8}
+    .start-overlay .icon{font-size:72px;margin-bottom:20px;animation:pulse 2s infinite}
+    .start-overlay .text{font-size:34px;font-weight:700;color:#60a5fa;text-align:center;line-height:1.4}
+    .start-overlay .hint{font-size:16px;color:#64748b;margin-top:12px}
+    .err{position:absolute;top:11vh;left:20px;right:20px;padding:10px 16px;background:#450a0a;color:#fca5a5;border-radius:8px;font-size:14px;display:none;z-index:20}
+    .footer{position:absolute;left:10px;right:10px;bottom:10px;height:7vh;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#1e293b;color:#fff;border-radius:14px;padding:10px 16px;box-shadow:0 6px 18px rgba(15,23,42,.5);z-index:10}
     .footer .time{font-size:24px;font-weight:900;letter-spacing:1px}
     .footer .announce{font-size:12px;color:#86efac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
     .footer .sync{font-size:12px;color:#94a3b8}
-    .start{position:fixed;inset:0;background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8,#312e81);z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
-    .start h1{font-size:60px;margin:0 0 20px}
-    .start p{font-size:26px;margin:0;color:#bfdbfe}
-    .play{font-size:84px;margin-bottom:24px}
-    .err{position:fixed;left:10px;top:10px;background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:8px;font-size:13px;z-index:20;max-width:80%}
-
-    /* adaptive by card count */
-    .mode-few .ticket{font-size:72px;min-width:160px;padding:14px 20px}
-    .mode-few .service-name{font-size:22px}
-    .mode-few .loket{font-size:20px;padding:8px 14px}
-    .mode-few .status{font-size:16px}
-
-    .mode-normal .ticket{font-size:54px;min-width:130px}
-    .mode-normal .service-name{font-size:18px}
-    .mode-normal .loket{font-size:16px}
-
-    .mode-many .service{padding:8px 10px}
-    .mode-many .service-name{font-size:15px}
-    .mode-many .service-code{font-size:11px;padding:3px 8px}
-    .mode-many .ticket{font-size:34px;min-width:88px;padding:8px 10px}
-    .mode-many .loket{font-size:13px;padding:4px 8px}
-    .mode-many .status{font-size:11px}
-
-    /* when many layanan, allow two-row queue area if needed */
-    .mode-many .queue-row{flex-wrap:wrap;bottom:calc(7vh + 20px)}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.96)}}
+    @media (max-width:768px){
+      .topbar .logo{font-size:20px}.topbar .name{font-size:16px}.topbar .loc{font-size:12px}.topbar .time{font-size:16px}
+      .footer{height:5vh;min-height:36px;padding:6px 12px}.footer .time{font-size:14px}.footer .announce{font-size:10px}
+      .start-overlay .icon{font-size:48px}.start-overlay .text{font-size:22px}
+    }
+    .mode-few .queue-row{flex:0 0 auto;padding:8px 10px 10px}
+    .mode-few .card{flex:1 1 100%;max-width:100%}
+    .mode-few .card .ticket{font-size:52px;min-height:64px}
+    .mode-normal .queue-row{flex:0 0 auto;padding:6px 10px 8px}
+    .mode-normal .card{flex:1 1 calc(25% - 8px);min-width:180px}
+    .mode-normal .card .ticket{font-size:36px;min-height:48px}
+    .mode-many .queue-row{flex:0 0 auto;padding:4px 10px 6px;bottom:calc(7vh + 20px)}
     .mode-many .card{flex:1 1 calc(16.6% - 10px);min-width:170px}
+    .mode-many .card .ticket{font-size:28px;min-height:40px}
+    .queue-row{position:absolute;left:10px;right:10px;bottom:calc(7vh + 20px);display:flex;gap:10px;z-index:10;overflow-x:auto;overflow-y:hidden;padding:4px 0}
+    .queue-row::-webkit-scrollbar{height:4px}
+    .queue-row::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
+    .card{flex:0 0 calc(25% - 8px);background:#1e293b;border-radius:10px;overflow:hidden;border:1px solid #334155;display:flex;flex-direction:column}
+    .card .service{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#334155;min-height:42px}
+    .card .service-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .card .service-code{font-size:10px;color:#60a5fa;background:#1e3a5f;padding:1px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+    .card .body{padding:8px 10px}
+    .card .ticket{font-size:36px;font-weight:900;margin:4px 0 2px;text-align:center;letter-spacing:2px;min-height:48px;display:flex;align-items:center;justify-content:center;word-break:break-all}
+    .card .loket{text-align:center;font-size:16px;font-weight:700;color:#10b981;margin:2px 0}
+    .card .status{text-align:center;font-size:12px;padding:3px 8px;border-radius:20px;display:inline-block;margin:2px auto;width:auto;min-width:80px}
+    .card .status.calling{background:#1d4ed8;color:#fff;font-weight:700;animation:blink 1.5s infinite}
+    .card .status.completed{background:#064e3b;color:#6ee7b7}
+    .card .status.waiting{background:#1e293b;color:#64748b}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
   </style>
 </head>
-<body class="mode-normal">
-  <div id="start" class="start"><div><div class="play">▶</div><h1>Sistem Antrian</h1><p>Tekan OK / ENTER untuk mulai</p></div></div>
-  <div id="err" class="err" style="display:none"></div>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand"><b id="displayName">Display Antrian</b><span class="loc" id="displayLoc"></span></div>
+<body>
+  <div class="topbar">
+    <div class="logo">📋 ANTRIAN</div>
+    <div class="info">
+      <div class="name" id="displayName">Memuat...</div>
+      <div class="loc" id="displayLoc"></div>
+    </div>
+    <div class="date-wrap">
       <div class="date" id="date"></div>
-    </div>
-    <div class="video">
-      <video id="vid" muted autoplay playsinline></video>
-      <div id="novideo" class="novideo">Memuat video...</div>
-    </div>
-    <div id="grid" class="queue-row"></div>
-    <div class="footer">
       <div class="time" id="time">--:--:--</div>
-      <div class="announce" id="announce">🔔 announcer: -</div>
-      <div class="sync" id="sync">sync: -</div>
     </div>
+  </div>
+
+  <div class="video-wrap">
+    <div id="novideo" class="novideo"></div>
+    <!-- This div is replaced after announcer audio ends to get a fresh video element -->
+    <div id="video-host"></div>
+  </div>
+
+  <div class="start-overlay" id="start">
+    <div class="icon">📺</div>
+    <div class="text">Tekan tombol OK / ENTER<br>untuk mulai tampilan</div>
+    <div class="hint">atau ketuk layar</div>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="footer">
+    <div class="time" id="time">--:--:--</div>
+    <div class="announce" id="announce">🔔 announcer: -</div>
+    <div class="sync" id="sync">sync: -</div>
   </div>
 <script>
 (function(){
   var API='/api/v1'; var display=null, videos=[], videoIndex=0, started=false;
   var announcerSettings={}, audioUnlocked=false, lastAnnounced={};
-  var savedVideoSrc='', savedVideoTime=0, isAnnouncing=false;
+  var isAnnouncing=false, savedVideoIndex=0, savedVideoTime=0;
+  var announceAudio=null; // standalone Audio element for announcer
+
   function $(id){return document.getElementById(id)}
   function showErr(m){var e=$('err'); e.style.display='block'; e.innerHTML=m}
   function clearErr(){var e=$('err'); e.style.display='none'; e.innerHTML=''}
   function pad(n){return n<10?'0'+n:''+n}
   function setSync(){var d=new Date(); $('sync').innerHTML='sync: '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
   function today(){var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
-  function getJSON(url, cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
+  function getJSON(url,cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
   function text(v){return (v===null||v===undefined)?'':String(v)}
-  function esc(v){return text(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function esc(v){return text(v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c})}
   function setAnnouncerStatus(m){var e=$('announce'); if(e)e.innerHTML='🔔 announcer: '+esc(m)}
-  function initAnnouncer(){announcerSettings=(display&&display.settings)||{}; lastAnnounced={}; if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off'); return} setAnnouncerStatus(audioUnlocked?'siap single-media':'tekan OK')}
-  function unlockAudio(){audioUnlocked=true; initAnnouncer()}
-  function announcementKey(q){return q?String(q.id)+'|'+text(q.called_at||q.created_at||q.status):''}
-  function restoreVideo(){var v=$('vid'); if(!v||!savedVideoSrc)return; var src=savedVideoSrc, t=savedVideoTime||0; isAnnouncing=false; v.onended=function(){playVideo(videoIndex+1)}; v.onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)}; v.removeAttribute('style'); v.src=src; v.muted=!started; v.load(); var restored=false; var doPlay=function(){if(restored)return; restored=true; try{if(t>1)v.currentTime=t}catch(e){} v.muted=!started; var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){setTimeout(function(){var p2=v.play&&v.play(); if(p2&&p2.catch)p2.catch(function(){})},500)}); fitVideo(); setAnnouncerStatus('siap single-media')}; v.oncanplay=doPlay; setTimeout(doPlay,3000)}
-  function playAudioUrl(url,label){try{var v=$('vid'); if(!v||isAnnouncing)return; isAnnouncing=true; savedVideoSrc=videos.length?videos[videoIndex%videos.length].file_url:v.src; savedVideoTime=v.currentTime||0; v.oncanplay=null; v.onerror=function(){setAnnouncerStatus('audio error'); restoreVideo()}; v.onended=restoreVideo; v.removeAttribute('style'); v.src=url; v.muted=false; v.volume=parseFloat(announcerSettings.announcer_volume||announcerSettings.volume||1); v.load(); setTimeout(function(){if(isAnnouncing)restoreVideo()},15000); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){setAnnouncerStatus('gagal play'); restoreVideo()}); setAnnouncerStatus('diputar '+label)}catch(e){setAnnouncerStatus('gagal play'); restoreVideo()}}
-  function playAnnouncer(q,l){if(!q||isAnnouncing||!(q.status==='called'||q.status==='serving'))return; var key=announcementKey(q); var mapKey=String(l.id); if(lastAnnounced[mapKey]===key)return; lastAnnounced[mapKey]=key; if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off'); return} if(!audioUnlocked){setAnnouncerStatus('tekan OK'); return} setAnnouncerStatus('membuat audio '+q.ticket_number); getJSON(API+'/tts/queue/'+q.id,function(err,res){if(err){if(announcerSettings.announcer_sound_url){playAudioUrl(announcerSettings.announcer_sound_url,q.ticket_number)}else{setAnnouncerStatus('tts gagal')} return} playAudioUrl(res.audio_url,q.ticket_number)})}
-  function start(){started=true; $('start').style.display='none'; unlockAudio(); var v=$('vid'); v.muted=false; var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
-  document.onkeydown=function(e){e=e||window.event; var k=e.key||e.keyCode; if(k==='Enter'||k===' '||k==='OK'||k===13||k===32) start()}
+
+  function initAnnouncer(){
+    announcerSettings=(display&&display.settings)||{};
+    lastAnnounced={};
+    if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off'); return}
+    setAnnouncerStatus(audioUnlocked?'siap':'tekan OK')
+  }
+
+  function unlockAudio(){
+    audioUnlocked=true;
+    initAnnouncer()
+  }
+
+  function announcementKey(q){
+    return q?String(q.id)+'|'+text(q.called_at||q.created_at||q.status):''
+  }
+
+  // ── RECREATE VIDEO ELEMENT ─────────────────────────────────────────────────
+  // Replace the old <video> element in the DOM to get a fresh decoder on Tizen
+  function recreateVideoElement(idx, time, muted){
+    var host=$('video-host');
+    host.innerHTML='<video id="vid" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block" muted></video>';
+    var v=$('vid');
+    v.onloadedmetadata=fitVideo;
+    v.onerror=function(){
+      showErr('Video error. Pastikan MP4 H.264 + AAC');
+      if(videos.length>1) setTimeout(function(){playVideo(videoIndex+1)},1500)
+    };
+    v.onended=function(){playVideo(videoIndex+1)};
+    v.src=videos[idx%videos.length].file_url;
+    v.muted=muted!==undefined?muted:!started;
+    v.load();
+    var p=v.play&&v.play();
+    if(p&&p.catch)p.catch(function(){});
+    return v
+  }
+
+  function fitVideo(){
+    var v=$('vid');
+    if(!v)return;
+    var box=v.parentNode;
+    if(!box)return;
+    var bw=box.clientWidth||1, bh=box.clientHeight||1;
+    var vr=(v.videoWidth||1)/(v.videoHeight||1);
+    var br=bw/bh;
+    v.removeAttribute('style');
+    if(vr>br){v.style.width='100%';v.style.height='auto'}
+    else{v.style.width='auto';v.style.height='100%'}
+    v.style.display='block'
+  }
+
+  function playVideo(i){
+    if(!videos.length) return;
+    videoIndex=i%videos.length;
+    if(isAnnouncing) return; // don't interrupt announcer
+    var v=recreateVideoElement(videoIndex, 0, !started);
+    fitVideo()
+  }
+
+  // ── ANNOUNCER AUDIO PLAYBACK ─────────────────────────────────────────────
+  function finishAnnouncerAudio(){
+    if(!isAnnouncing) return;
+    isAnnouncing=false;
+    setAnnouncerStatus(audioUnlocked?'siap':'tekan OK');
+    savedVideoTime=0;
+    recreateVideoElement(savedVideoIndex, savedVideoTime, false)
+  }
+
+  function playAnnouncerAudio(url, label){
+    isAnnouncing=true;
+    setAnnouncerStatus('memutar '+label);
+    if(announceAudio){announceAudio.pause();announceAudio=null}
+    announceAudio=new Audio(url);
+    announceAudio.volume=parseFloat(announcerSettings.announcer_volume||announcerSettings.volume||1);
+    var done=false;
+    var finish=function(){
+      if(done)return; done=true;
+      announceAudio=null;
+      finishAnnouncerAudio()
+    };
+    announceAudio.onended=finish;
+    announceAudio.onerror=function(){
+      setAnnouncerStatus('audio error');
+      finish()
+    };
+    setTimeout(finish,15000);
+    var p=announceAudio.play();
+    if(p&&p.catch)p.catch(function(){setAnnouncerStatus('gagal play');finish()})
+  }
+
+  function playAnnouncer(q,l){
+    if(!q||isAnnouncing) return;
+    if(!(q.status==='called'||q.status==='serving')) return;
+    var key=announcementKey(q);
+    var mapKey=String(l.id);
+    if(lastAnnounced[mapKey]===key) return;
+    lastAnnounced[mapKey]=key;
+    if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off');return}
+    if(!audioUnlocked){setAnnouncerStatus('tekan OK');return}
+    setAnnouncerStatus('membuat audio '+q.ticket_number);
+    // Use static fallback audio if no dynamic TTS available
+    if(announcerSettings.announcer_sound_url){
+      playAnnouncerAudio(announcerSettings.announcer_sound_url, q.ticket_number)
+      return
+    }
+    getJSON(API+'/tts/queue/'+q.id,function(err,res){
+      if(err){setAnnouncerStatus('tts gagal');finishAnnouncerAudio();return}
+      playAnnouncerAudio(res.audio_url, res.ticket_number||q.ticket_number)
+    })
+  }
+
+  function start(){
+    started=true;
+    $('start').style.display='none';
+    unlockAudio();
+    playVideo(0)
+  }
+
+  document.onkeydown=function(e){
+    e=e||window.event;
+    var k=e.key||e.keyCode;
+    if(k==='Enter'||k===' '||k==='OK'||k===13||k===32) start()
+  };
   $('start').onclick=start
-  function tickClock(){var d=new Date(); var ds=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString(); $('date').innerHTML=ds; $('time').innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
-  setInterval(tickClock,1000); tickClock();
-  function loadDisplay(){getJSON(API+'/displays',function(err,res){if(err){showErr('Gagal display: '+err.message);return} var arr=res.data||[]; display=arr[0]||null; for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}} if(display){$('displayName').innerHTML=esc(display.name); $('displayLoc').innerHTML=esc(display.location||''); initAnnouncer()} loadVideos(); loadLayanans()})}
-  function loadVideos(){if(!display)return; getJSON(API+'/videos?display_id='+display.id,function(err,res){if(err){$('novideo').innerHTML='Video gagal dimuat';return} videos=res.data||[]; if(videos.length){$('novideo').style.display='none'; playVideo(0)} else {$('novideo').style.display='flex'; $('novideo').innerHTML='Tidak ada video aktif'}})}
-  function fitVideo(){var v=$('vid'), box=v.parentNode; if(!v.videoWidth||!v.videoHeight)return; var bw=box.clientWidth||1, bh=box.clientHeight||1, vr=v.videoWidth/v.videoHeight, br=bw/bh; if(vr>br){v.style.width='100%';v.style.height='auto'}else{v.style.width='auto';v.style.height='100%'}}
-  function playVideo(i){if(!videos.length)return; videoIndex=i%videos.length; var v=$('vid'); v.removeAttribute('style'); v.src=videos[videoIndex].file_url; v.muted=!started; v.load(); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
-  $('vid').onended=function(){playVideo(videoIndex+1)}
-  $('vid').onloadedmetadata=fitVideo
-  if(window.addEventListener)window.addEventListener('resize',fitVideo)
-  $('vid').onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)}
-  function modeClass(n){return n<=2?'mode-few':(n>4?'mode-many':'mode-normal')}
-  function defaultLoket(l){if(l&&l.counter&&l.counter.name)return l.counter.name; if(display&&display.settings&&display.settings.counter_id)return 'Loket terpilih'; return 'Semua loket'}
-  function loadLayanans(){getJSON(API+'/layanans?active_only=1',function(err,res){if(err){showErr('Gagal layanan: '+err.message);return} clearErr(); renderLayanans(res.data||[])})}
-  function renderLayanans(list){var g=$('grid'); g.innerHTML=''; document.body.className=modeClass(list.length); for(var i=0;i<list.length;i++){(function(l){var card=document.createElement('div'); card.className='card'; card.innerHTML='<div class="service"><div class="service-name">'+esc(l.name)+'</div><div class="service-code">'+esc(l.code)+'</div></div><div class="body"><div class="ticket js-ticket">-</div><div class="loket js-loket">'+esc(defaultLoket(l))+'</div><div class="status js-status">Menunggu antrian</div></div>'; g.appendChild(card); updateQueue(l,card); setInterval(function(){updateQueue(l,card)},3000)})(list[i])}}
-  function updateQueue(l,card){var url=API+'/layanans/'+l.id+'/queues?status=called,serving,completed&date='+today(); var cid=display&&display.settings?display.settings.counter_id:null; if(cid)url+='&counter_id='+cid; getJSON(url,function(err,res){if(err)return; setSync(); var q=res.data||[]; q.sort(function(a,b){return new Date(b.called_at||b.created_at)-new Date(a.called_at||a.created_at)}); var cur=null; for(var i=0;i<q.length;i++){if(q[i].status==='serving'||q[i].status==='called'){cur=q[i];break}} if(!cur)cur=q[0]; var loket=cur&&cur.counter&&cur.counter.name?cur.counter.name:defaultLoket(l); var st=card.getElementsByClassName('js-status')[0]; card.getElementsByClassName('js-ticket')[0].innerHTML=cur?esc(cur.ticket_number):'-'; card.getElementsByClassName('js-loket')[0].innerHTML=esc(loket); st.className='status js-status'+(cur&&(cur.status==='serving'||cur.status==='called')?' calling':''); st.innerHTML=cur?(cur.status==='completed'?'Terakhir selesai':'Sedang dipanggil'):'Menunggu antrian'; playAnnouncer(cur,l)})}
+
+  function tickClock(){
+    var d=new Date();
+    var ds=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString();
+    $('date').innerHTML=ds;
+    var ts=document.querySelectorAll('.time');
+    ts.forEach(function(el){el.innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())})
+  }
+  setInterval(tickClock,1000); tickClock()
+
+  function loadDisplay(){
+    getJSON(API+'/displays',function(err,res){
+      if(err){showErr('Gagal display: '+err.message);return}
+      var arr=res.data||[];
+      display=arr[0]||null;
+      for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}}
+      if(display){
+        $('displayName').innerHTML=esc(display.name);
+        $('displayLoc').innerHTML=esc(display.location||'');
+        initAnnouncer()
+      }
+      loadVideos();
+      loadLayanans()
+    })
+  }
+
+  function loadVideos(){
+    if(!display) return;
+    getJSON(API+'/videos?display_id='+display.id,function(err,res){
+      if(err){$('novideo').innerHTML='Video gagal dimuat';$('novideo').style.display='flex';return}
+      videos=res.data||[];
+      if(videos.length){
+        $('novideo').style.display='none';
+        // Pre-create video element (don't auto-play yet — wait for start())
+        var host=$('video-host');
+        host.innerHTML='<video id="vid" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block" muted></video>';
+        var v=$('vid');
+        v.onloadedmetadata=fitVideo;
+        v.onerror=function(){
+          showErr('Video error. Pastikan MP4 H.264 + AAC');
+          if(videos.length>1) setTimeout(function(){playVideo(videoIndex+1)},1500)
+        };
+        v.onended=function(){playVideo(videoIndex+1)};
+        v.src=videos[0].file_url;
+        v.muted=true;
+        v.load()
+      } else {
+        $('novideo').style.display='flex';
+        $('novideo').innerHTML='Tidak ada video aktif'
+      }
+    })
+  }
+
+  function modeClass(n){
+    return n<=2?'mode-few':(n>4?'mode-many':'mode-normal')
+  }
+
+  function defaultLoket(l){
+    if(l&&l.counter&&l.counter.name) return l.counter.name;
+    if(display&&display.settings&&display.settings.counter_id) return 'Loket terpilih';
+    return 'Semua loket'
+  }
+
+  function loadLayanans(){
+    getJSON(API+'/layanans?active_only=1',function(err,res){
+      if(err){showErr('Gagal layanan: '+err.message);return}
+      clearErr();
+      renderLayanans(res.data||[])
+    })
+  }
+
+  function renderLayanans(list){
+    var g=$('grid');
+    if(!g){g=document.createElement('div'); g.id='grid'; g.className='queue-row'; document.body.appendChild(g)}
+    g.innerHTML='';
+    document.body.className=modeClass(list.length);
+    for(var i=0;i<list.length;i++){
+      (function(l){
+        var card=document.createElement('div');
+        card.className='card';
+        card.innerHTML='<div class="service"><div class="service-name">'+esc(l.name)+'</div><div class="service-code">'+esc(l.code)+'</div></div><div class="body"><div class="ticket js-ticket">-</div><div class="loket js-loket">'+esc(defaultLoket(l))+'</div><div class="status js-status waiting">Menunggu antrian</div></div>';
+        g.appendChild(card);
+        updateQueue(l,card);
+        setInterval(function(){updateQueue(l,card)},3000)
+      })(list[i])
+    }
+  }
+
+  function updateQueue(l,card){
+    var url=API+'/layanans/'+l.id+'/queues?status=called,serving,completed&date='+today();
+    var cid=display&&display.settings?display.settings.counter_id:null;
+    if(cid) url+='&counter_id='+cid;
+    getJSON(url,function(err,res){
+      if(err) return;
+      setSync();
+      var q=res.data||[];
+      q.sort(function(a,b){return new Date(b.called_at||b.created_at)-new Date(a.called_at||a.created_at)});
+      var cur=null;
+      for(var i=0;i<q.length;i++){
+        if(q[i].status==='serving'||q[i].status==='called'){cur=q[i];break}
+      }
+      if(!cur) cur=q[0];
+      var loket=cur&&cur.counter&&cur.counter.name?cur.counter.name:defaultLoket(l);
+      var st=card.getElementsByClassName('js-status')[0];
+      card.getElementsByClassName('js-ticket')[0].innerHTML=cur?esc(cur.ticket_number):'-';
+      card.getElementsByClassName('js-loket')[0].innerHTML=esc(loket);
+      var isCalling=cur&&(cur.status==='serving'||cur.status==='called');
+      st.className='status js-status '+(isCalling?'calling':(cur&&cur.status==='completed'?'completed':'waiting'));
+      st.innerHTML=cur?(cur.status==='completed'?'Terakhir selesai':'Sedang dipanggil'):'Menunggu antrian';
+      if(isCalling){
+        savedVideoIndex=videoIndex;
+        savedVideoTime=0;
+        var v=$('vid');
+        if(v&&!v.paused) savedVideoTime=v.currentTime||0;
+        if(announceAudio){try{announceAudio.pause()}catch(e){}}
+        playAnnouncer(cur,l)
+      }
+    })
+  }
+
   loadDisplay()
-})();
+})()
 </script>
 </body>
 </html>
