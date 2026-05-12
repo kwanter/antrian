@@ -119,6 +119,13 @@
 
   function unlockAudio(){
     audioUnlocked=true;
+    try{
+      var a=new Audio('/storage/announcers/silence.wav');
+      a.volume=0.01;
+      var p=a.play();
+      if(p&&p.catch)p.catch(function(){});
+      setTimeout(function(){try{a.pause();a.src=''}catch(e){}},250)
+    }catch(e){}
     initAnnouncer()
   }
 
@@ -132,6 +139,7 @@
     var host=$('video-host');
     host.innerHTML='<video id="vid" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block" muted></video>';
     var v=$('vid');
+    var vol=parseFloat((announcerSettings&&announcerSettings.volume)||1);
     v.onloadedmetadata=fitVideo;
     v.onerror=function(){
       showErr('Video error. Pastikan MP4 H.264 + AAC');
@@ -140,9 +148,17 @@
     v.onended=function(){playVideo(videoIndex+1)};
     v.src=videos[idx%videos.length].file_url;
     v.muted=muted!==undefined?muted:!started;
+    v.volume=vol;
     v.load();
     var p=v.play&&v.play();
     if(p&&p.catch)p.catch(function(){});
+    // After play starts, ensure unmuted with volume if started
+    if(started&&!muted){
+      setTimeout(function(){
+        var ve=$('vid');
+        if(ve){ve.muted=false;ve.volume=vol}
+      },500)
+    }
     return v
   }
 
@@ -209,13 +225,9 @@
     if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off');return}
     if(!audioUnlocked){setAnnouncerStatus('tekan OK');return}
     setAnnouncerStatus('membuat audio '+q.ticket_number);
-    // Use static fallback audio if no dynamic TTS available
-    if(announcerSettings.announcer_sound_url){
-      playAnnouncerAudio(announcerSettings.announcer_sound_url, q.ticket_number)
-      return
-    }
+    // Always use dynamic TTS
     getJSON(API+'/tts/queue/'+q.id,function(err,res){
-      if(err){setAnnouncerStatus('tts gagal');finishAnnouncerAudio();return}
+      if(err){setAnnouncerStatus('tts gagal');isAnnouncing=false;return}
       playAnnouncerAudio(res.audio_url, res.ticket_number||q.ticket_number)
     })
   }
