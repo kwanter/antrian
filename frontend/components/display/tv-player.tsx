@@ -32,6 +32,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
   const playlistRef = useRef(videos);
   const isLoadingRef = useRef(false);
   const hasAudioUnlockedRef = useRef(false);
@@ -87,12 +88,13 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
   }, []);
 
   const unlockAudio = useCallback(() => {
-    if (hasAudioUnlockedRef.current) return;
     hasAudioUnlockedRef.current = true;
+    setAudioUnlocked(true);
     const video = videoRef.current;
     if (video) {
       video.volume = volumeRef.current / 100;
       video.muted = mutedRef.current;
+      video.play().catch(() => {});
     }
   }, []);
 
@@ -118,9 +120,9 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
             video.muted = mutedRef.current;
           }
         })
-        .catch(() => {
-          // silently ignore — TV may block without user interaction
+        .catch((err) => {
           setIsPlaying(false);
+          onError?.(`Playback blocked: ${err instanceof Error ? err.message : String(err)}`);
         })
         .finally(() => {
           isLoadingRef.current = false;
@@ -152,7 +154,16 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
   const isMuted = volumeRef.current === 0;
   const supportedMime = canPlayVideoMime(videos);
 
-  if (!hasVideos || !started) {
+  if (!hasVideos) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-white p-8 text-center">
+        <div className="text-4xl font-bold mb-4">Tidak ada video aktif</div>
+        <div className="text-xl text-slate-300">Antrian tetap tampil di panel kanan.</div>
+      </div>
+    );
+  }
+
+  if (!started) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative">
         {/* Decorative */}
@@ -207,6 +218,16 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
         <div className="absolute bottom-8 left-4 text-xs text-white/30">
           codec: {supportedMime}
         </div>
+
+        <button
+          type="button"
+          className="absolute inset-0 cursor-pointer"
+          aria-label="Mulai display TV"
+          onClick={() => {
+            setStarted(true);
+            unlockAudio();
+          }}
+        />
       </div>
     );
   }
@@ -239,7 +260,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
             </span>
           </div>
           {isPlaying && <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />}
-          {!hasAudioUnlockedRef.current && (
+          {!audioUnlocked && (
             <div className="bg-amber-500/80 rounded-full px-3 py-2">
               <span className="text-black text-xs font-medium">
                 Tekan OK untuk aktifkan suara
