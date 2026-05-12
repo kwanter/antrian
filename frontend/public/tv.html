@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Display Antrian TV</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0f172a;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+    .wrap{height:100%;display:flex;gap:16px;padding:16px;box-sizing:border-box;background:linear-gradient(135deg,#eff6ff,#e0e7ff)}
+    .video{width:62%;background:#000;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+    video{width:100%;height:100%;object-fit:contain;background:#000}
+    .novideo{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:#cbd5e1;font-size:36px;font-weight:bold}
+    .panel{width:38%;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+    .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow:hidden}
+    .card{background:rgba(255,255,255,.94);color:#0f172a;border-radius:18px;overflow:hidden;box-shadow:0 10px 25px rgba(15,23,42,.16);display:flex;flex-direction:column;min-height:0}
+    .head{background:#1d4ed8;color:#fff;padding:12px 14px;font-weight:bold;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .code{font-size:12px;color:#bfdbfe;margin-top:3px}
+    .current{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:14px}
+    .ticket{background:#f59e0b;color:#fff;font-size:54px;line-height:1;font-weight:900;border-radius:16px;padding:18px 22px;min-width:130px;text-align:center;box-shadow:0 8px 20px rgba(245,158,11,.35)}
+    .counter{margin-top:10px;color:#64748b;font-size:15px;font-weight:bold}
+    .recent{border-top:1px solid #e2e8f0;background:#f8fafc;padding:8px 10px;min-height:58px;color:#334155;font-size:14px}
+    .recent div{display:flex;justify-content:space-between;background:#fff;border-radius:8px;padding:5px 8px;margin:4px 0}
+    .clock{background:#1e293b;border-radius:14px;padding:12px 16px;font-size:18px;display:flex;justify-content:space-between;color:#fff}
+    .start{position:fixed;inset:0;background:linear-gradient(135deg,#1d4ed8,#312e81);z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+    .start h1{font-size:64px;margin:0 0 20px}.start p{font-size:28px;margin:0;color:#bfdbfe}.play{font-size:88px;margin-bottom:24px}
+    .err{position:fixed;left:10px;top:10px;background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:8px;font-size:13px;z-index:20;max-width:80%}
+  </style>
+</head>
+<body>
+  <div id="start" class="start"><div><div class="play">▶</div><h1>Sistem Antrian</h1><p>Tekan OK / ENTER untuk mulai</p></div></div>
+  <div id="err" class="err" style="display:none"></div>
+  <div class="wrap">
+    <div class="video"><video id="vid" muted autoplay playsinline></video><div id="novideo" class="novideo">Memuat video...</div></div>
+    <div class="panel"><div id="grid" class="grid"></div><div class="clock"><span id="date"></span><strong id="time"></strong></div></div>
+  </div>
+<script>
+(function(){
+  var API='/api/v1'; var display=null, videos=[], videoIndex=0, started=false;
+  function $(id){return document.getElementById(id)}
+  function showErr(m){var e=$('err'); e.style.display='block'; e.innerHTML=m}
+  function pad(n){return n<10?'0'+n:''+n}
+  function today(){var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function getJSON(url, cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
+  function text(v){return (v===null||v===undefined)?'':String(v)}
+  function start(){started=true; $('start').style.display='none'; var v=$('vid'); v.muted=false; v.play&&v.play();}
+  document.onkeydown=function(e){e=e||window.event; var k=e.key||e.keyCode; if(k==='Enter'||k===' '||k==='OK'||k===13||k===32) start()}; $('start').onclick=start;
+  function tickClock(){var d=new Date(); $('date').innerHTML=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString(); $('time').innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
+  setInterval(tickClock,1000); tickClock();
+  function loadDisplay(){getJSON(API+'/displays',function(err,res){if(err){showErr('Gagal display: '+err.message);return} var arr=res.data||[]; display=arr[0]||null; for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}} loadVideos(); loadLayanans();})}
+  function loadVideos(){if(!display)return; getJSON(API+'/videos?display_id='+display.id,function(err,res){if(err){$('novideo').innerHTML='Video gagal dimuat';return} videos=res.data||[]; if(videos.length){$('novideo').style.display='none'; playVideo(0)} else {$('novideo').innerHTML='Tidak ada video aktif'}})}
+  function playVideo(i){if(!videos.length)return; videoIndex=i%videos.length; var v=$('vid'); v.src=videos[videoIndex].file_url; v.muted=!started; v.load(); var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
+  $('vid').onended=function(){playVideo(videoIndex+1)}; $('vid').onerror=function(){showErr('Video error. Pastikan MP4 H.264 + AAC'); if(videos.length>1)setTimeout(function(){playVideo(videoIndex+1)},1500)};
+  function loadLayanans(){getJSON(API+'/layanans?active_only=1',function(err,res){if(err){showErr('Gagal layanan: '+err.message);return} renderLayanans(res.data||[])})}
+  function renderLayanans(list){var g=$('grid'); g.innerHTML=''; for(var i=0;i<list.length;i++){(function(l){var card=document.createElement('div'); card.className='card'; card.innerHTML='<div class="head">'+text(l.name)+'<div class="code">'+text(l.code)+'</div></div><div class="current"><div class="ticket">-</div><div class="counter">Menunggu...</div></div><div class="recent"></div>'; g.appendChild(card); updateQueue(l,card); setInterval(function(){updateQueue(l,card)},3000)})(list[i])}}
+  function updateQueue(l,card){var url=API+'/layanans/'+l.id+'/queues?status=called,serving,completed&date='+today(); var cid=display&&display.settings?display.settings.counter_id:null; if(cid)url+='&counter_id='+cid; getJSON(url,function(err,res){if(err)return; var q=res.data||[]; q.sort(function(a,b){return new Date(b.called_at||b.created_at)-new Date(a.called_at||a.created_at)}); var cur=null; for(var i=0;i<q.length;i++){if(q[i].status==='serving'||q[i].status==='called'){cur=q[i];break}} if(!cur)cur=q[0]; card.getElementsByClassName('ticket')[0].innerHTML=cur?text(cur.ticket_number):'-'; card.getElementsByClassName('counter')[0].innerHTML=cur?(cur.counter&&cur.counter.name?'Di '+cur.counter.name:'Dipanggil'):'Menunggu...'; var recent=card.getElementsByClassName('recent')[0]; recent.innerHTML=''; var n=0; for(var j=0;j<q.length&&n<3;j++){if(cur&&q[j].id===cur.id)continue; var d=document.createElement('div'); d.innerHTML='<b>'+text(q[j].ticket_number)+'</b><span>'+(q[j].counter?text(q[j].counter.name):'')+'</span>'; recent.appendChild(d); n++}})}
+  loadDisplay();
+})();
+</script>
+</body>
+</html>
