@@ -100,7 +100,10 @@ export default function CountersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Manajemen Loket</h1>
-        <Button onClick={() => setAddOpen(true)}>
+        <Button onClick={() => {
+          setForm({ name: "", code: "" });
+          setAddOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Tambah Loket
         </Button>
@@ -185,7 +188,13 @@ export default function CountersPage() {
       )}
 
       {/* Add Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) setForm({ name: "", code: "" });
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tambah Loket</DialogTitle>

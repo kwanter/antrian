@@ -38,25 +38,26 @@ export function LayananForm({
   counters,
   saving,
 }: LayananFormProps) {
-  const [form, setForm] = useState({
-    name: initialData?.name ?? "",
-    code: initialData?.code ?? "",
-    description: initialData?.description ?? "",
-    counter_id: initialData?.counter_id ?? "",
-  });
+  const emptyForm = { name: "", code: "", description: "", counter_id: "" };
+  const [form, setForm] = useState(emptyForm);
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      setForm({ name: "", code: "", description: "", counter_id: "" });
-    }
+    if (!newOpen) setForm(emptyForm);
     onOpenChange(newOpen);
   };
 
+  const currentForm = {
+    name: form.name || initialData?.name || "",
+    code: form.code || initialData?.code || "",
+    description: form.description || initialData?.description || "",
+    counter_id: form.counter_id || initialData?.counter_id || "",
+  };
+
   const preparePayload = (): LayananPayload => ({
-    name: form.name,
-    code: form.code,
-    description: form.description || undefined,
-    counter_id: form.counter_id ? parseInt(form.counter_id) : undefined,
+    name: currentForm.name,
+    code: currentForm.code,
+    description: currentForm.description || undefined,
+    counter_id: currentForm.counter_id ? parseInt(currentForm.counter_id) : undefined,
   });
 
   const handleSubmit = () => {
@@ -76,7 +77,7 @@ export function LayananForm({
             <Label htmlFor="layanan-name">Nama</Label>
             <Input
               id="layanan-name"
-              value={form.name}
+              value={currentForm.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Customer Service"
             />
@@ -85,7 +86,7 @@ export function LayananForm({
             <Label htmlFor="layanan-code">Kode</Label>
             <Input
               id="layanan-code"
-              value={form.code}
+              value={currentForm.code}
               onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
               placeholder="CS"
             />
@@ -94,7 +95,7 @@ export function LayananForm({
             <Label htmlFor="layanan-desc">Deskripsi</Label>
             <Input
               id="layanan-desc"
-              value={form.description}
+              value={currentForm.description}
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
@@ -106,7 +107,7 @@ export function LayananForm({
             <select
               id="layanan-counter"
               className="w-full h-10 px-3 border rounded-md bg-background"
-              value={form.counter_id}
+              value={currentForm.counter_id}
               onChange={(e) =>
                 setForm((f) => ({ ...f, counter_id: e.target.value }))
               }
@@ -126,7 +127,7 @@ export function LayananForm({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !form.name || !form.code}
+            disabled={saving || !currentForm.name || !currentForm.code}
           >
             {saving ? "Menyimpan…" : "Simpan"}
           </Button>
