@@ -16,7 +16,7 @@ class DynamicAnnouncerService
 
         $ticket = $this->speakableTicket($queue->ticket_number);
         $counter = $queue->counter?->name ?: 'loket yang ditentukan';
-        $text = "Nomor antrian {$ticket}, silakan menuju ke {$counter}.";
+        $text = "Nomor antrian {$ticket}. Menuju {$counter}. Sekali lagi, nomor antrian {$ticket}, menuju {$counter}.";
 
         return $this->audioUrlForText($text, $queue->id . '-' . md5($text));
     }
@@ -35,7 +35,7 @@ class DynamicAnnouncerService
 
         $wav = "{$directory}/{$safeKey}.wav";
 
-        $espeak = new Process(['espeak-ng', '-v', 'id', '-s', '145', '-p', '45', '-w', $wav, $text]);
+        $espeak = new Process(['espeak-ng', '-v', 'id', '-s', '125', '-p', '45', '-w', $wav, $text]);
         $espeak->setTimeout(20);
         $espeak->mustRun();
 
