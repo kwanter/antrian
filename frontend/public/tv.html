@@ -210,7 +210,7 @@
       setAnnouncerStatus('audio error');
       finish()
     };
-    setTimeout(finish,15000);
+    setTimeout(finish,30000);
     var p=announceAudio.play();
     if(p&&p.catch)p.catch(function(){setAnnouncerStatus('gagal play');finish()})
   }
@@ -355,11 +355,12 @@
       st.className='status js-status '+(isCalling?'calling':(cur&&cur.status==='completed'?'completed':'waiting'));
       st.innerHTML=cur?(cur.status==='completed'?'Terakhir selesai':'Sedang dipanggil'):'Menunggu antrian';
       if(isCalling){
-        savedVideoIndex=videoIndex;
-        savedVideoTime=0;
-        var v=$('vid');
-        if(v&&!v.paused) savedVideoTime=v.currentTime||0;
-        if(announceAudio){try{announceAudio.pause()}catch(e){}}
+        if(!isAnnouncing){
+          savedVideoIndex=videoIndex;
+          savedVideoTime=0;
+          var v=$('vid');
+          if(v&&!v.paused) savedVideoTime=v.currentTime||0;
+        }
         playAnnouncer(cur,l)
       }
     })
