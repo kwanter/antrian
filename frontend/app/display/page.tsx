@@ -43,12 +43,16 @@ interface TvDebugInfo {
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 
+const APP_TIMEZONE = "Asia/Makassar";
+const APP_TIMEZONE_LABEL = "WITA";
+
 function todayDate(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -239,16 +243,17 @@ function SlotTime() {
         <span className="text-sm text-slate-400">📅</span>
         <span className="text-sm">
           {time.toLocaleDateString("id-ID", {
+            timeZone: APP_TIMEZONE,
             weekday: "long",
             day: "numeric",
             month: "long",
             year: "numeric",
-          })}
+          })} · {APP_TIMEZONE_LABEL}
         </span>
       </div>
       <div className="flex items-center gap-2 text-white">
         <span className="text-lg font-mono font-bold tracking-wider" suppressHydrationWarning>
-          {time.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          {time.toLocaleTimeString("id-ID", { timeZone: APP_TIMEZONE, hour: "2-digit", minute: "2-digit", second: "2-digit" })} {APP_TIMEZONE_LABEL}
         </span>
       </div>
     </div>
@@ -341,7 +346,7 @@ function DisplayContent() {
   useDisplayChannel((event) => {
     if (!display) return;
 
-    setDebug((d) => ({ ...d, lastSync: new Date().toLocaleTimeString("id-ID") }));
+    setDebug((d) => ({ ...d, lastSync: new Date().toLocaleTimeString("id-ID", { timeZone: APP_TIMEZONE }) }));
 
     // Announcer logic
     const queue = (event as DisplaySyncEvent).queue;
@@ -382,7 +387,7 @@ function DisplayContent() {
         const res = await api.get(`/displays/${display.id}/sync`);
         const data = res.data.data;
         if (data?.current_queue) {
-          setDebug((d) => ({ ...d, lastSync: new Date().toLocaleTimeString("id-ID") }));
+          setDebug((d) => ({ ...d, lastSync: new Date().toLocaleTimeString("id-ID", { timeZone: APP_TIMEZONE }) }));
         }
       } catch {
         // silent — WS handles updates

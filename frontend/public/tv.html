@@ -94,7 +94,8 @@
   </div>
 <script>
 (function(){
-  var API='/api/v1'; var display=null, videos=[], videoIndex=0, started=false;
+  var API='/api/v1'; var TZ='Asia/Makassar'; var TZ_LABEL='WITA';
+  var display=null, videos=[], videoIndex=0, started=false;
   var announcerSettings={}, audioUnlocked=false, lastAnnounced={};
   var isAnnouncing=false, savedVideoIndex=0, savedVideoTime=0;
   var announceAudio=null; // standalone Audio element for announcer
@@ -103,8 +104,22 @@
   function showErr(m){var e=$('err'); e.style.display='block'; e.innerHTML=m}
   function clearErr(){var e=$('err'); e.style.display='none'; e.innerHTML=''}
   function pad(n){return n<10?'0'+n:''+n}
-  function setSync(){var d=new Date(); $('sync').innerHTML='sync: '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
-  function today(){var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function witaParts(d){
+    d=d||new Date();
+    if(window.Intl&&Intl.DateTimeFormat){
+      try{
+        var f=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        var a=f.formatToParts(d), o={};
+        for(var i=0;i<a.length;i++){o[a[i].type]=a[i].value}
+        return {y:o.year,m:o.month,d:o.day,h:o.hour==='24'?'00':o.hour,i:o.minute,s:o.second}
+      }catch(e){}
+    }
+    var u=new Date(d.getTime()+8*60*60*1000);
+    return {y:u.getUTCFullYear(),m:pad(u.getUTCMonth()+1),d:pad(u.getUTCDate()),h:pad(u.getUTCHours()),i:pad(u.getUTCMinutes()),s:pad(u.getUTCSeconds())}
+  }
+  function witaTime(d){var p=witaParts(d); return p.h+':'+p.i+':'+p.s}
+  function today(){var p=witaParts(new Date()); return p.y+'-'+p.m+'-'+p.d}
+  function setSync(){$('sync').innerHTML='sync: '+witaTime(new Date())+' '+TZ_LABEL}
   function getJSON(url,cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
   function text(v){return (v===null||v===undefined)?'':String(v)}
   function esc(v){return text(v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c})}
@@ -248,10 +263,11 @@
 
   function tickClock(){
     var d=new Date();
-    var ds=d.toLocaleDateString?d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):d.toDateString();
-    $('date').innerHTML=ds;
+    var ds=d.toLocaleDateString?d.toLocaleDateString('id-ID',{timeZone:TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'}):today();
+    $('date').innerHTML=ds+' · '+TZ_LABEL;
+    var wt=witaTime(d)+' '+TZ_LABEL;
     var ts=document.querySelectorAll('.time');
-    for(var i=0;i<ts.length;i++){ts[i].innerHTML=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())}
+    for(var i=0;i<ts.length;i++){ts[i].innerHTML=wt}
   }
   setInterval(tickClock,1000); tickClock()
 
