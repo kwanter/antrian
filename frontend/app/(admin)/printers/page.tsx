@@ -218,12 +218,12 @@ export default function PrintersPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Profil Printer</DialogTitle>
             <DialogDescription>Ubah template nota untuk profil &quot;{editTarget?.name}&quot;</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="edit-name">Nama Profil</Label>
               <Input
@@ -254,12 +254,12 @@ export default function PrintersPage() {
 
       {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={(o) => !o && setShowAdd(false)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Tambah Profil Printer</DialogTitle>
             <DialogDescription>Buat profil printer baru dengan template nota</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="add-name">Nama Profil</Label>
               <Input
