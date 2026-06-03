@@ -8,7 +8,7 @@ import { PrinterTemplateEditor } from "@/components/admin/printer-template-edito
 import { usePrinter } from "@/hooks/use-printer";
 import { buildPrinterTestTicket } from "@/lib/escpos";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -151,9 +151,18 @@ export default function PrintersPage() {
       </div>
 
       {!printer.isWebSerialAvailable && (
-        <div className="flex items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>Web Serial API tidak tersedia. Gunakan Chrome/Edge untuk koneksi langsung ke printer. Untuk Windows, jalankan bridge.py sebagai alternatif.</span>
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>Web Serial API tidak tersedia di browser ini. Untuk printer USB di Windows, jalankan bridge.py.</span>
+          </div>
+          <a
+            href="/iware-bridge/bridge.py"
+            download="bridge.py"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Download bridge.py
+          </a>
         </div>
       )}
 
