@@ -130,6 +130,12 @@ class PrintHandler(http.server.BaseHTTPRequestHandler):
 
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
+        # Chrome/Edge Private Network Access preflight for web app -> localhost bridge.
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
 
     def log_message(self, fmt, *args):
         pass  # quiet
