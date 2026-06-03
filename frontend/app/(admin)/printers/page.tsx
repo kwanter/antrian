@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import type { PrinterProfile } from "@/lib/types";
 import { PrinterTemplateEditor } from "@/components/admin/printer-template-editor";
+import { usePrinter } from "@/hooks/use-printer";
+import { buildPrinterTestTicket } from "@/lib/escpos";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
 
 export default function PrintersPage() {
   const qc = useQueryClient();
+  const printer = usePrinter();
   const [editTarget, setEditTarget] = useState<PrinterProfile | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PrinterProfile | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -67,13 +71,28 @@ export default function PrintersPage() {
   const [addTemplate, setAddTemplate] = useState<Record<string, unknown>>({
     header_text: "",
     footer_text: "",
-    paper_size: "80mm",
+    paper_size: "58mm",
     copy_count: 1,
+    printer_model: "Iware C-58BT",
+    connection_type: "web_serial",
+    baud_rate: 9600,
+    charset: "utf-8",
+    cut_mode: "partial",
   });
 
   const resetAdd = () => {
     setAddName("");
-    setAddTemplate({ header_text: "", footer_text: "", paper_size: "80mm", copy_count: 1 });
+    setAddTemplate({
+      header_text: "",
+      footer_text: "",
+      paper_size: "58mm",
+      copy_count: 1,
+      printer_model: "Iware C-58BT",
+      connection_type: "web_serial",
+      baud_rate: 9600,
+      charset: "utf-8",
+      cut_mode: "partial",
+    });
   };
 
   const openEdit = (p: PrinterProfile) => {
@@ -87,6 +106,40 @@ export default function PrintersPage() {
     setShowAdd(true);
   };
 
+  const testPrint = async (profile: PrinterProfile) => {
+    const template = profile.template ?? {};
+    const baudRate = (template.baud_rate as number) ?? 9600;
+
+    try {
+      const bytes = buildPrinterTestTicket({
+        header_text: (template.header_text as string) || profile.header_text || undefined,
+        footer_text: (template.footer_text as string) || profile.footer_text || undefined,
+        paper_size: (template.paper_size as string) || profile.paper_size,
+        copy_count: (template.copy_count as number) || profile.copy_count,
+        cut_mode: (template.cut_mode as string) || "partial",
+      });
+
+      if ((template.connection_type as string) === "windows_bridge") {
+        if (!printer.bridgeUrl) {
+          throw new Error("Windows Bridge tidak aktif. Jalankan bridge.py di PC Windows.");
+        }
+        await printer.printViaBridge(bytes, printer.bridgeUrl);
+      } else {
+        if (!printer.isConnected) {
+          await printer.connect({ baudRate });
+        }
+        await printer.print(bytes);
+      }
+
+      toast.success("Test print berhasil dikirim ke printer", {
+        description: "Periksa apakah struk keluar dari printer",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Test print gagal";
+      toast.error(message);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -96,6 +149,13 @@ export default function PrintersPage() {
         </div>
         <Button onClick={openAdd}>+ Tambah Profil</Button>
       </div>
+
+      {!printer.isWebSerialAvailable && (
+        <div className="flex items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Web Serial API tidak tersedia. Gunakan Chrome/Edge untuk koneksi langsung ke printer. Untuk Windows, jalankan bridge.py sebagai alternatif.</span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-muted-foreground">Memuat...</div>
@@ -114,6 +174,7 @@ export default function PrintersPage() {
                 <CardDescription className="flex gap-2 flex-wrap">
                   <Badge variant="outline">{(p.template?.paper_size as string) ?? "80mm"}</Badge>
                   <Badge variant="secondary">Salinan ×{(p.template?.copy_count as number) ?? 1}</Badge>
+                  <Badge variant="outline">{String(p.template?.printer_model ?? "Generic")}</Badge>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -130,6 +191,18 @@ export default function PrintersPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  {printer.isWebSerialAvailable && !printer.isConnected && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => printer.connect({ baudRate: (p.template?.baud_rate as number) ?? 9600 })}
+                    >
+                      Hubungkan
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={() => testPrint(p)}>
+                    Test Print
+                  </Button>
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(p)}>
                     Edit
                   </Button>

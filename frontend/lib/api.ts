@@ -28,11 +28,12 @@ api.interceptors.response.use(
         window.location.assign("/loket/login");
       } else if (
         path !== "/" &&
+        !path.startsWith("/login") &&
         !path.startsWith("/loket/login") &&
         !path.startsWith("/kiosk") &&
         !path.startsWith("/display")
       ) {
-        window.location.assign("/");
+        window.location.assign("/login");
       }
     }
     return Promise.reject(error);

@@ -41,6 +41,9 @@ Route::prefix('v1')->group(function () {
 
     // TTS — public for TV display announcer
     Route::get('/tts/queue/{queue}', [TtsController::class, 'queue']);
+
+    // Printer Profiles — public default for kiosk
+    Route::get('/printer-profiles/default', [PrinterProfilesController::class, 'defaultProfile']);
 });
 
 // Protected routes (requires Sanctum authentication)
@@ -96,12 +99,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     });
     Route::get('/videos/{video}', [VideosController::class, 'show']);
 
-    // Printer Profiles
+    // Printer Profiles (list/read for any auth user, write for admin/super)
     Route::get('/printer-profiles', [PrinterProfilesController::class, 'index']);
-    Route::post('/printer-profiles', [PrinterProfilesController::class, 'store']);
     Route::get('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'show']);
-    Route::put('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'update']);
-    Route::delete('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'destroy']);
+    Route::middleware('role:admin,super')->group(function () {
+        Route::post('/printer-profiles', [PrinterProfilesController::class, 'store']);
+        Route::put('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'update']);
+        Route::delete('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'destroy']);
+    });
 
     // Kiosk Stations
     Route::get('/kiosk-stations', [KioskStationsController::class, 'index']);

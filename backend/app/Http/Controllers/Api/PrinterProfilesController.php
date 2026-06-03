@@ -19,6 +19,19 @@ class PrinterProfilesController extends Controller
         ]);
     }
 
+    public function defaultProfile(): JsonResponse
+    {
+        $profile = PrinterProfile::query()
+            ->where('paper_size', '58mm')
+            ->orderBy('id')
+            ->first()
+            ?? PrinterProfile::query()->orderBy('id')->first();
+
+        return response()->json([
+            'data' => $profile,
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -29,16 +42,36 @@ class PrinterProfilesController extends Controller
             'footer_text' => 'nullable|string|max:500',
             'logo_url' => 'nullable|url',
             'template' => 'nullable|array',
+            'template.paper_size' => 'sometimes|in:58mm,80mm',
+            'template.copy_count' => 'sometimes|integer|min:1|max:10',
+            'template.printer_model' => 'nullable|string|max:100',
+            'template.connection_type' => 'sometimes|in:web_serial,windows_bridge',
+            'template.baud_rate' => 'sometimes|integer|min:300|max:115200',
+            'template.charset' => 'sometimes|in:utf-8,cp437,cp850',
+            'template.cut_mode' => 'sometimes|in:none,partial,full',
+            'template.header_text' => 'nullable|string|max:500',
+            'template.footer_text' => 'nullable|string|max:500',
         ]);
+
+        // Normalize: template values mirror to top-level if not explicitly set
+        $template = $request->template ?? [];
+        $paperSize = $request->paper_size
+            ?? $template['paper_size'] ?? '58mm';
+        $copyCount = $request->copy_count
+            ?? $template['copy_count'] ?? 1;
+        $headerText = $request->header_text
+            ?? $template['header_text'] ?? null;
+        $footerText = $request->footer_text
+            ?? $template['footer_text'] ?? null;
 
         $profile = PrinterProfile::create([
             'name' => $request->name,
-            'paper_size' => $request->paper_size ?? '58mm',
-            'copy_count' => $request->copy_count ?? 1,
-            'header_text' => $request->header_text,
-            'footer_text' => $request->footer_text,
+            'paper_size' => $paperSize,
+            'copy_count' => $copyCount,
+            'header_text' => $headerText,
+            'footer_text' => $footerText,
             'logo_url' => $request->logo_url,
-            'template' => $request->template,
+            'template' => $template,
         ]);
 
         AuditLog::log(
@@ -75,11 +108,39 @@ class PrinterProfilesController extends Controller
             'footer_text' => 'nullable|string|max:500',
             'logo_url' => 'nullable|url',
             'template' => 'nullable|array',
+            'template.paper_size' => 'sometimes|in:58mm,80mm',
+            'template.copy_count' => 'sometimes|integer|min:1|max:10',
+            'template.printer_model' => 'nullable|string|max:100',
+            'template.connection_type' => 'sometimes|in:web_serial,windows_bridge',
+            'template.baud_rate' => 'sometimes|integer|min:300|max:115200',
+            'template.charset' => 'sometimes|in:utf-8,cp437,cp850',
+            'template.cut_mode' => 'sometimes|in:none,partial,full',
+            'template.header_text' => 'nullable|string|max:500',
+            'template.footer_text' => 'nullable|string|max:500',
         ]);
 
-        $printerProfile->update($request->only([
-            'name', 'paper_size', 'copy_count', 'header_text', 'footer_text', 'logo_url', 'template'
-        ]));
+        // Normalize: template values mirror to top-level if not explicitly set
+        $template = $request->template ?? [];
+        $paperSize = $request->paper_size
+            ?? $template['paper_size'] ?? $printerProfile->paper_size;
+        $copyCount = $request->copy_count
+            ?? $template['copy_count'] ?? $printerProfile->copy_count;
+        $headerText = $request->has('header_text')
+            ? $request->header_text
+            : ($template['header_text'] ?? $printerProfile->header_text);
+        $footerText = $request->has('footer_text')
+            ? $request->footer_text
+            : ($template['footer_text'] ?? $printerProfile->footer_text);
+
+        $printerProfile->update([
+            'name' => $request->name ?? $printerProfile->name,
+            'paper_size' => $paperSize,
+            'copy_count' => $copyCount,
+            'header_text' => $headerText,
+            'footer_text' => $footerText,
+            'logo_url' => $request->logo_url ?? $printerProfile->logo_url,
+            'template' => $template ?: $printerProfile->template,
+        ]);
 
         AuditLog::log(
             action: 'update',
