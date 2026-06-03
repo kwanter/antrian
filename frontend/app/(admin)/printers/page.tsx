@@ -156,13 +156,22 @@ export default function PrintersPage() {
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>Web Serial API tidak tersedia di browser ini. Untuk printer USB di Windows, jalankan bridge.py.</span>
           </div>
-          <a
-            href="/iware-bridge/bridge.py"
-            download="bridge.py"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Download bridge.py
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href="/iware-bridge/bridge.bat"
+              download="bridge.bat"
+              className={buttonVariants({ variant: "default", size: "sm" })}
+            >
+              Download bridge.bat
+            </a>
+            <a
+              href="/iware-bridge/bridge.py"
+              download="bridge.py"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              bridge.py
+            </a>
+          </div>
         </div>
       )}
 
