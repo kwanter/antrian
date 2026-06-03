@@ -56,6 +56,44 @@ export default function KioskPage() {
     setShowError(false);
   }, []);
 
+  const printQueue = useCallback(
+    async (queue: Queue, profile: PrinterProfile) => {
+      const template = profile.template ?? {};
+      const bytes = buildQueueTicketBytes({
+        ticketNumber: queue.ticket_number,
+        serviceType: queue.service_type,
+        createdAt: queue.created_at
+          ? new Date(queue.created_at).toLocaleDateString("id-ID", {
+              timeZone: "Asia/Makassar",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "",
+        headerText: (template.header_text as string) || profile.header_text || undefined,
+        footerText: (template.footer_text as string) || profile.footer_text || undefined,
+        paperSize: (template.paper_size as "58mm" | "80mm") || profile.paper_size || "58mm",
+        copyCount: (template.copy_count as number) || profile.copy_count || 1,
+        cutMode: (template.cut_mode as "none" | "partial" | "full") || "partial",
+      });
+
+      if ((template.connection_type as string) === "windows_bridge") {
+        await printer.printViaBridge(bytes);
+        return;
+      }
+
+      if (!printer.isConnected) {
+        await printer.connect({
+          baudRate: (template.baud_rate as number) ?? 9600,
+        });
+      }
+      await printer.print(bytes);
+    },
+    [printer],
+  );
+
   const handlePrint = useCallback(async () => {
     if (!selectedLayanan) return;
 
@@ -74,41 +112,7 @@ export default function KioskPage() {
         return;
       }
 
-      if (!printer.isConnected) {
-        await printer.connect({
-          baudRate: (printerProfileData.template?.baud_rate as number) ?? 9600,
-        });
-      }
-
-      const template = printerProfileData.template ?? {};
-      const bytes = buildQueueTicketBytes({
-        ticketNumber: queue.ticket_number,
-        serviceType: queue.service_type,
-        createdAt: queue.created_at
-          ? new Date(queue.created_at).toLocaleDateString("id-ID", {
-              timeZone: "Asia/Makassar",
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "",
-        headerText: (template.header_text as string) || printerProfileData.header_text || undefined,
-        footerText: (template.footer_text as string) || printerProfileData.footer_text || undefined,
-        paperSize: (template.paper_size as "58mm" | "80mm") || printerProfileData.paper_size || "58mm",
-        copyCount: (template.copy_count as number) || printerProfileData.copy_count || 1,
-        cutMode: (template.cut_mode as "none" | "partial" | "full") || "partial",
-      });
-
-      if ((template.connection_type as string) === "windows_bridge") {
-        if (!printer.bridgeUrl) {
-          throw new Error("Printer bridge tidak aktif. Hubungi petugas.");
-        }
-        await printer.printViaBridge(bytes, printer.bridgeUrl);
-      } else {
-        await printer.print(bytes);
-      }
+      await printQueue(queue, printerProfileData);
 
       setShowPreview(false);
       setSelectedLayanan(null);
@@ -119,7 +123,7 @@ export default function KioskPage() {
     } finally {
       setIsPrinting(false);
     }
-  }, [selectedLayanan, createTicket, printer, printerProfileData]);
+  }, [selectedLayanan, createTicket, printerProfileData, printQueue]);
 
   const handleRetryPrint = useCallback(async () => {
     if (!lastQueue || !printerProfileData) return;
@@ -128,41 +132,7 @@ export default function KioskPage() {
     setShowError(false);
 
     try {
-      if (!printer.isConnected) {
-        await printer.connect({
-          baudRate: (printerProfileData.template?.baud_rate as number) ?? 9600,
-        });
-      }
-
-      const template = printerProfileData.template ?? {};
-      const bytes = buildQueueTicketBytes({
-        ticketNumber: lastQueue.ticket_number,
-        serviceType: lastQueue.service_type,
-        createdAt: lastQueue.created_at
-          ? new Date(lastQueue.created_at).toLocaleDateString("id-ID", {
-              timeZone: "Asia/Makassar",
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "",
-        headerText: (template.header_text as string) || printerProfileData.header_text || undefined,
-        footerText: (template.footer_text as string) || printerProfileData.footer_text || undefined,
-        paperSize: (template.paper_size as "58mm" | "80mm") || printerProfileData.paper_size || "58mm",
-        copyCount: (template.copy_count as number) || printerProfileData.copy_count || 1,
-        cutMode: (template.cut_mode as "none" | "partial" | "full") || "partial",
-      });
-
-      if ((template.connection_type as string) === "windows_bridge") {
-        if (!printer.bridgeUrl) {
-          throw new Error("Printer bridge tidak aktif. Hubungi petugas.");
-        }
-        await printer.printViaBridge(bytes, printer.bridgeUrl);
-      } else {
-        await printer.print(bytes);
-      }
+      await printQueue(lastQueue, printerProfileData);
       setShowError(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal mencetak ulang";
@@ -171,7 +141,10 @@ export default function KioskPage() {
     } finally {
       setIsPrinting(false);
     }
-  }, [lastQueue, printer, printerProfileData]);
+  }, [lastQueue, printerProfileData, printQueue]);
+
+  const connectionType = (printerProfileData?.template?.connection_type as string) ?? "web_serial";
+  const isWindowsBridge = connectionType === "windows_bridge";
 
   const handleClosePreview = useCallback(() => {
     setShowPreview(false);
@@ -193,17 +166,29 @@ export default function KioskPage() {
         {/* Printer status */}
         <div className="mb-6 flex items-center justify-center gap-2">
           <Badge
-            variant={printer.isConnected ? "default" : "secondary"}
+            variant={
+              isWindowsBridge
+                ? printer.isBridgeAvailable
+                  ? "default"
+                  : "secondary"
+                : printer.isConnected
+                ? "default"
+                : "secondary"
+            }
             className="gap-1"
           >
             <Printer className="h-3 w-3" />
-            {printer.isConnected
+            {isWindowsBridge
+              ? printer.isBridgeAvailable
+                ? "Bridge Aktif"
+                : "Bridge Tidak Terdeteksi"
+              : printer.isConnected
               ? "Printer Terhubung"
               : printer.isWebSerialAvailable
               ? "Printer Belum Terhubung"
               : "Web Serial Tidak Tersedia"}
           </Badge>
-          {!printer.isConnected && printer.isWebSerialAvailable && (
+          {!isWindowsBridge && !printer.isConnected && printer.isWebSerialAvailable && (
             <Button variant="outline" size="sm" onClick={() => printer.connect()}>
               Hubungkan Printer
             </Button>
@@ -266,7 +251,7 @@ export default function KioskPage() {
                 )}
 
                 <div className="mb-6 flex flex-col gap-3">
-                  {showError && !printer.isConnected && printer.isWebSerialAvailable && (
+                  {showError && !isWindowsBridge && !printer.isConnected && printer.isWebSerialAvailable && (
                     <Button
                       variant="outline"
                       size="lg"
