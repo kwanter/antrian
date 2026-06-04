@@ -8,6 +8,7 @@ import { TvVideoPlayer } from "@/components/display/tv-player";
 import { TvDebugOverlay } from "@/components/display/tv-debug-overlay";
 import { getLayanans } from "@/lib/api";
 import api from "@/lib/api";
+import { resolveBackendUrl } from "@/lib/utils";
 import type { Display, DisplaySyncEvent, Layanan, Queue, Video } from "@/lib/types";
 import { useDisplayChannel } from "@/hooks/use-websocket";
 import { useVolumeChannel } from "@/hooks/use-websocket";
@@ -415,31 +416,49 @@ function DisplayContent() {
       if (!display || display.settings?.announcer_enabled === false) return;
 
       const announcerVolume = Math.min(1, Math.max(0, display.settings?.announcer_volume ?? 1));
-      const counterName = queue.counter?.name ?? "loket";
-      const message = `Nomor antrian ${queue.ticket_number}, silakan menuju ${counterName}`;
-      const soundUrl = display.settings?.announcer_sound_url;
 
+      // 1) Try backend dynamic TTS (edge-tts, female Indonesian voice)
+      try {
+        const res = await api.get(`/tts/queue/${queue.id}`);
+        const { audio_url } = res.data;
+        if (audio_url) {
+          const audio = new Audio(resolveBackendUrl(audio_url));
+          audio.volume = announcerVolume;
+          await audio.play();
+          setSoundBlocked(false);
+          setDebug((d) => ({ ...d, announcerBlocked: false }));
+          return;
+        }
+      } catch {
+        // fall through
+      }
+
+      // 2) Fallback: uploaded announcer sound
+      const soundUrl = display.settings?.announcer_sound_url;
       if (soundUrl?.startsWith("/storage/announcers/")) {
-        const audio = new Audio(soundUrl);
+        const audio = new Audio(resolveBackendUrl(soundUrl));
         audio.volume = announcerVolume;
         try {
           await audio.play();
           setSoundBlocked(false);
           setDebug((d) => ({ ...d, announcerBlocked: false }));
+          return;
         } catch {
           setSoundBlocked(true);
           setDebug((d) => ({ ...d, announcerBlocked: true }));
+          return;
         }
-        return;
       }
 
-      // TV fallback: speechSynthesis unavailable → just log
+      // 3) Last-ditch: browser speechSynthesis (robotic, not ideal)
       if (!("speechSynthesis" in window)) {
         setDebug((d) => ({ ...d, announcerBlocked: true }));
         return;
       }
 
       try {
+        const counterName = queue.counter?.name ?? "loket";
+        const message = `Nomor antrian ${queue.ticket_number}, silakan menuju ${counterName}`;
         const utterance = new SpeechSynthesisUtterance(message);
         utterance.lang = "id-ID";
         utterance.volume = announcerVolume;
@@ -457,19 +476,12 @@ function DisplayContent() {
 
   const enableSound = () => {
     setSoundBlocked(false);
-    // Prime audio context on TV
+    // Prime backend audio so TV/user-gesture is satisfied for first TTS call
     const soundUrl = display?.settings?.announcer_sound_url;
     if (soundUrl?.startsWith("/storage/announcers/")) {
-      const audio = new Audio(soundUrl);
+      const audio = new Audio(resolveBackendUrl(soundUrl));
       audio.volume = 0;
       audio.play().catch(() => {}).finally(() => audio.pause());
-    }
-    // Unlock speech
-    if ("speechSynthesis" in window) {
-      const utt = new SpeechSynthesisUtterance(" ");
-      utt.volume = 0;
-      window.speechSynthesis.speak(utt);
-      window.speechSynthesis.cancel();
     }
   };
 

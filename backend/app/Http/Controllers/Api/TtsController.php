@@ -17,6 +17,8 @@ class TtsController extends Controller
             'audio_url' => $audioUrl,
             'ticket_number' => $queue->ticket_number,
             'counter' => $queue->counter?->name,
+            'voice' => $tts->voiceName(),
+            'text' => $tts->announcementTextForQueue($queue),
         ]);
     }
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { updateVideo, updateVideoWithFile } from "@/lib/api";
+import { resolveBackendUrl } from "@/lib/utils";
 import type { Display, Video } from "@/lib/types";
 import { toast } from "sonner";
 import { VideoUploadCard } from "@/components/admin/video-upload-card";
@@ -337,22 +338,43 @@ export default function DisplaysPage() {
     updateAnnouncerMutation.mutate({ displayId: display.id, formData });
   };
 
-  const testAnnouncer = (display: Display) => {
+  const testAnnouncer = async (display: Display) => {
     const volume = (announcerVolumeDrafts[display.id] ?? Math.round((display.settings?.announcer_volume ?? 1) * 100)) / 100;
-    const soundUrl = display.settings?.announcer_sound_url;
+    const vol = Math.min(1, Math.max(0, volume));
 
+    // 1) Try backend dynamic TTS (edge-tts) using a recently called queue
+    try {
+      const list = await api.get("/queues", { params: { status: "called", per_page: 1 } });
+      const sampleQueue = list.data?.data?.[0];
+      if (sampleQueue?.id) {
+        const tts = await api.get(`/tts/queue/${sampleQueue.id}`);
+        const { audio_url } = tts.data ?? {};
+        if (audio_url) {
+          const audio = new Audio(resolveBackendUrl(audio_url));
+          audio.volume = vol;
+          await audio.play();
+          return;
+        }
+      }
+    } catch {
+      // fall through
+    }
+
+    // 2) Fallback: uploaded announcer sound
+    const soundUrl = display.settings?.announcer_sound_url;
     if (soundUrl?.startsWith("/storage/announcers/")) {
-      const audio = new Audio(soundUrl);
-      audio.volume = Math.min(1, Math.max(0, volume));
+      const audio = new Audio(resolveBackendUrl(soundUrl));
+      audio.volume = vol;
       void audio.play().catch(() => toast.error("Browser memblokir suara. Klik lagi untuk tes."));
       return;
     }
 
+    // 3) Last-ditch: browser speechSynthesis
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     const utterance = new SpeechSynthesisUtterance("Nomor antrian A001, silakan menuju loket satu");
     utterance.lang = "id-ID";
-    utterance.volume = Math.min(1, Math.max(0, volume));
+    utterance.volume = vol;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };

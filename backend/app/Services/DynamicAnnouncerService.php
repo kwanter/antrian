@@ -6,19 +6,36 @@ use App\Models\Queue;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Symfony\Component\Process\Process;
 
 class DynamicAnnouncerService
 {
     public function audioUrlForQueue(Queue $queue): string
     {
+        $text = $this->announcementTextForQueue($queue);
+
+        return $this->audioUrlForText($text, $queue->id . '-' . md5($text . '|' . $this->voiceName()));
+    }
+
+    public function announcementTextForQueue(Queue $queue): string
+    {
         $queue->loadMissing(['counter', 'layanan']);
 
         $ticket = $this->speakableTicket($queue->ticket_number);
-        $counter = $queue->counter?->name ?: 'loket yang ditentukan';
-        $text = "Nomor antrian {$ticket}. Menuju {$counter}. Sekali lagi, nomor antrian {$ticket}, menuju {$counter}.";
+        $counter = $queue->counter?->name ?: 'loket yang dituju';
 
-        return $this->audioUrlForText($text, $queue->id . '-' . md5($text));
+        return "Nomor antrian {$ticket}. Silakan menuju ke {$counter}. Sekali lagi, nomor antrian {$ticket}, menuju {$counter}.";
+    }
+
+    public function voiceName(): string
+    {
+        return env('DYNAMIC_TTS_VOICE', 'id-ID-GadisNeural');
+    }
+
+    public function usesEspeakFallback(): bool
+    {
+        return false;
     }
 
     public function audioUrlForText(string $text, string $key): string
@@ -33,13 +50,82 @@ class DynamicAnnouncerService
         $directory = storage_path('app/public/announcers/dynamic');
         File::ensureDirectoryExists($directory, 0775, true);
 
+        $mp3 = "{$directory}/{$safeKey}.mp3";
         $wav = "{$directory}/{$safeKey}.wav";
 
-        $espeak = new Process(['espeak-ng', '-v', 'id', '-s', '125', '-p', '45', '-w', $wav, $text]);
-        $espeak->setTimeout(20);
-        $espeak->mustRun();
+        $this->generateMp3WithEdgeTts($text, $mp3);
+        $this->convertMp3ToTvSafeWav($mp3, $wav);
+
+        if (! File::exists($wav)) {
+            throw new RuntimeException("Dynamic TTS failed: WAV was not created at {$wav}");
+        }
+
+        File::delete($mp3);
 
         return "/storage/{$relativeWav}";
+    }
+
+    private function generateMp3WithEdgeTts(string $text, string $mp3): void
+    {
+        $python = env('DYNAMIC_TTS_PYTHON', 'python3');
+        $voice = $this->voiceName();
+        $rate = env('DYNAMIC_TTS_RATE', '-5%');
+        $volume = env('DYNAMIC_TTS_VOLUME', '+0%');
+
+        $process = new Process([
+            $python,
+            '-m',
+            'edge_tts',
+            '--voice',
+            $voice,
+            "--rate={$rate}",
+            "--volume={$volume}",
+            '--text',
+            $text,
+            '--write-media',
+            $mp3,
+        ]);
+        $process->setTimeout(45);
+        $process->run();
+
+        if (! $process->isSuccessful() || ! File::exists($mp3)) {
+            $message = trim($process->getErrorOutput() ?: $process->getOutput());
+            throw new RuntimeException(
+                'Dynamic TTS failed: edge-tts Indonesian voice unavailable. Install with `python3 -m pip install edge-tts` and verify voice `'
+                . $voice
+                . '`. '
+                . $message
+            );
+        }
+    }
+
+    private function convertMp3ToTvSafeWav(string $mp3, string $wav): void
+    {
+        $ffmpeg = env('DYNAMIC_TTS_FFMPEG', 'ffmpeg');
+
+        $process = new Process([
+            $ffmpeg,
+            '-y',
+            '-i',
+            $mp3,
+            '-ar',
+            '22050',
+            '-ac',
+            '1',
+            '-c:a',
+            'pcm_s16le',
+            $wav,
+        ]);
+        $process->setTimeout(45);
+        $process->run();
+
+        if (! $process->isSuccessful() || ! File::exists($wav)) {
+            $message = trim($process->getErrorOutput() ?: $process->getOutput());
+            throw new RuntimeException(
+                'Dynamic TTS failed: ffmpeg could not convert edge-tts MP3 to Samsung TV-safe WAV. '
+                . $message
+            );
+        }
     }
 
     private function speakableTicket(?string $ticket): string
