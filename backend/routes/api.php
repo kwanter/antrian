@@ -64,66 +64,66 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Call next for counter
     Route::post('/counters/{counterId}/call-next', [QueuesController::class, 'callNext']);
 
-    // Counters
-    Route::get('/counters', [CountersController::class, 'index']);
-    Route::post('/counters', [CountersController::class, 'store']);
-    Route::get('/counters/{counter}', [CountersController::class, 'show']);
-    Route::put('/counters/{counter}', [CountersController::class, 'update']);
-    Route::delete('/counters/{counter}', [CountersController::class, 'destroy']);
-    Route::post('/counters/{counter}/assign-user', [CountersController::class, 'assignUser']);
-    Route::post('/counters/{counter}/unassign-user', [CountersController::class, 'unassignUser']);
-    Route::post('/counters/{counter}/sync-users', [CountersController::class, 'syncUsers']);
+    // Videos — detail requires authentication; listing is public above
+    Route::get('/videos/{video}', [VideosController::class, 'show']);
 
-    // Users
-    Route::get('/users', [UsersController::class, 'index']);
-    Route::post('/users', [UsersController::class, 'store']);
-    Route::get('/users/{user}', [UsersController::class, 'show']);
-    Route::put('/users/{user}', [UsersController::class, 'update']);
-    Route::delete('/users/{user}', [UsersController::class, 'destroy']);
-
-    // Displays — admin only (except index and sync which are public)
+    // Admin/super management routes. Loket users must never reach these APIs.
     Route::middleware('role:admin,super')->group(function () {
+        // Counters
+        Route::get('/counters', [CountersController::class, 'index']);
+        Route::post('/counters', [CountersController::class, 'store']);
+        Route::get('/counters/{counter}', [CountersController::class, 'show']);
+        Route::put('/counters/{counter}', [CountersController::class, 'update']);
+        Route::delete('/counters/{counter}', [CountersController::class, 'destroy']);
+        Route::post('/counters/{counter}/assign-user', [CountersController::class, 'assignUser']);
+        Route::post('/counters/{counter}/unassign-user', [CountersController::class, 'unassignUser']);
+        Route::post('/counters/{counter}/sync-users', [CountersController::class, 'syncUsers']);
+
+        // Users
+        Route::get('/users', [UsersController::class, 'index']);
+        Route::post('/users', [UsersController::class, 'store']);
+        Route::get('/users/{user}', [UsersController::class, 'show']);
+        Route::put('/users/{user}', [UsersController::class, 'update']);
+        Route::delete('/users/{user}', [UsersController::class, 'destroy']);
+
+        // Displays — writes only; index/show/sync are public above
         Route::post('/displays', [DisplaysController::class, 'store']);
         Route::put('/displays/{display}', [DisplaysController::class, 'update']);
         Route::delete('/displays/{display}', [DisplaysController::class, 'destroy']);
         Route::post('/displays/{display}/volume', [DisplaysController::class, 'updateVolume']);
         Route::post('/displays/{display}/announcer', [DisplaysController::class, 'updateAnnouncer']);
-    });
 
-    // Videos — admin only (except index which is public)
-    Route::middleware('role:admin,super')->group(function () {
+        // Videos — writes only; index is public above
         Route::post('/videos', [VideosController::class, 'store']);
         Route::put('/videos/{video}', [VideosController::class, 'update']);
         Route::delete('/videos/{video}', [VideosController::class, 'destroy']);
         Route::post('/videos/reorder', [VideosController::class, 'reorder']);
-    });
-    Route::get('/videos/{video}', [VideosController::class, 'show']);
 
-    // Printer Profiles (list/read for any auth user, write for admin/super)
-    Route::get('/printer-profiles', [PrinterProfilesController::class, 'index']);
-    Route::get('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'show']);
-    Route::middleware('role:admin,super')->group(function () {
+        // Printer Profiles
+        Route::get('/printer-profiles', [PrinterProfilesController::class, 'index']);
+        Route::get('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'show']);
         Route::post('/printer-profiles', [PrinterProfilesController::class, 'store']);
         Route::put('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'update']);
         Route::delete('/printer-profiles/{printerProfile}', [PrinterProfilesController::class, 'destroy']);
+
+        // Kiosk Stations
+        Route::get('/kiosk-stations', [KioskStationsController::class, 'index']);
+        Route::post('/kiosk-stations', [KioskStationsController::class, 'store']);
+        Route::get('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'show']);
+        Route::put('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'update']);
+        Route::delete('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'destroy']);
+        Route::post('/kiosk-stations/{kioskStation}/regenerate-token', [KioskStationsController::class, 'regenerateToken']);
+        Route::post('/kiosk-stations/{kioskStation}/heartbeat', [KioskStationsController::class, 'heartbeat']);
+
+        // Layanan — list/show/queues remain public above
+        Route::post('/layanans', [LayananController::class, 'store']);
+        Route::put('/layanans/{layanan}', [LayananController::class, 'update']);
+        Route::delete('/layanans/{layanan}', [LayananController::class, 'destroy']);
+
+        // Audit Logs
+        Route::get('/audit-logs/export', [AuditLogsController::class, 'export']);
+        Route::get('/audit-logs', [AuditLogsController::class, 'index']);
+        Route::get('/audit-logs/{auditLog}', [AuditLogsController::class, 'show']);
     });
 
-    // Kiosk Stations
-    Route::get('/kiosk-stations', [KioskStationsController::class, 'index']);
-    Route::post('/kiosk-stations', [KioskStationsController::class, 'store']);
-    Route::get('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'show']);
-    Route::put('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'update']);
-    Route::delete('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'destroy']);
-    Route::post('/kiosk-stations/{kioskStation}/regenerate-token', [KioskStationsController::class, 'regenerateToken']);
-    Route::post('/kiosk-stations/{kioskStation}/heartbeat', [KioskStationsController::class, 'heartbeat']);
-
-    // Layanan — admin CRUD (list/show already public above)
-    Route::post('/layanans', [LayananController::class, 'store']);
-    Route::put('/layanans/{layanan}', [LayananController::class, 'update']);
-    Route::delete('/layanans/{layanan}', [LayananController::class, 'destroy']);
-
-    // Audit Logs (admin only)
-    Route::get('/audit-logs', [AuditLogsController::class, 'index']);
-    Route::get('/audit-logs/{auditLog}', [AuditLogsController::class, 'show']);
-    Route::get('/audit-logs/export', [AuditLogsController::class, 'export']);
 });

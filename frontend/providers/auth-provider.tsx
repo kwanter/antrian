@@ -13,11 +13,22 @@ import type { LoginPayload, User } from "@/lib/types";
 import { setUser, clearUser } from "@/lib/auth";
 import api from "@/lib/api";
 
+export class AuthError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = "AuthError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<User | null>;
 }
@@ -45,17 +56,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  const login = useCallback(async (payload: LoginPayload) => {
+  const login = useCallback(async (payload: LoginPayload): Promise<User> => {
     try {
       const apiOrigin = api.defaults.baseURL?.replace(/\/api\/v1\/?$/, "") ?? "http://localhost:8000";
       await fetch(`${apiOrigin}/sanctum/csrf-cookie`, { credentials: "include" });
       const { data: res } = await api.post("/auth/login", payload);
-      setUser(res.data.user);
-      setUserState(res.data.user);
+      const loggedInUser: User = res.data.user;
+      setUser(loggedInUser);
+      setUserState(loggedInUser);
+      return loggedInUser;
     } catch (error) {
       clearUser();
       setUserState(null);
-      throw error;
+      const axiosError = error as { response?: { status?: number; data?: { code?: string; message?: string } } };
+      const status = axiosError?.response?.status;
+      const code = axiosError?.response?.data?.code;
+      const message =
+        axiosError?.response?.data?.message ??
+        (status === 401
+          ? "Email atau password salah."
+          : status === 403
+            ? "Akses ditolak."
+            : status === 429
+              ? "Terlalu banyak percobaan. Tunggu sebentar."
+              : "Login gagal. Periksa koneksi Anda.");
+      throw new AuthError(message, code, status);
     }
   }, []);
 

@@ -137,8 +137,19 @@ class QueuesController extends Controller
         ], 201);
     }
 
-    public function show(Queue $queue): JsonResponse
+    public function show(Queue $queue, Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        // Enforce scope for loket users: must be assigned to queue's counter
+        if ($user && $user->isLoket()) {
+            if (!$this->canOperateOnCounter($user, $queue->counter_id)) {
+                return response()->json([
+                    'message' => 'You are not authorized to view this queue',
+                ], 403);
+            }
+        }
+
         return response()->json([
             'data' => $queue->load('counter', 'logs'),
         ]);

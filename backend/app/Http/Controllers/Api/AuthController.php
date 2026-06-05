@@ -8,7 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -19,26 +20,43 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        // Rate limit: 5 attempts per 60 seconds per email+IP
+        $throttleKey = 'login:' . Str::lower($request->email) . '|' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return response()->json([
+                'message' => 'Terlalu banyak percobaan login. Coba lagi dalam ' . $seconds . ' detik.',
+                'code' => 'TOO_MANY_ATTEMPTS',
+            ], 429);
+        }
+
         $user = \App\Models\User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+            RateLimiter::hit($throttleKey, 60);
+            return response()->json([
+                'message' => 'Email atau password salah.',
+                'code' => 'INVALID_CREDENTIALS',
+            ], 401);
         }
 
         if (!$user->is_active) {
-            throw ValidationException::withMessages([
-                'email' => ['This account is inactive.'],
-            ]);
+            return response()->json([
+                'message' => 'Akun Anda tidak aktif. Hubungi admin.',
+                'code' => 'ACCOUNT_INACTIVE',
+            ], 403);
         }
 
         // Check counter assignment for loket users
         if ($user->isLoket() && !$user->counter_id && $user->assignedCounters()->count() === 0) {
-            throw ValidationException::withMessages([
-                'email' => ['This account is not assigned to any counter.'],
-            ]);
+            return response()->json([
+                'message' => 'Akun loket belum ditugaskan ke loket manapun. Hubungi admin.',
+                'code' => 'COUNTER_NOT_ASSIGNED',
+            ], 403);
         }
+
+        RateLimiter::clear($throttleKey);
 
         Auth::login($user);
         $request->session()->regenerate();

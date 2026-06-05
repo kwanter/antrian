@@ -22,7 +22,11 @@ export default function AdminLayout({
     if (!isLoading && !isAuthenticated && !isLoginPage) {
       router.replace("/login");
     }
-  }, [isLoading, isAuthenticated, isLoginPage, router]);
+    // Role guard: loket users must not access admin panel
+    if (!isLoading && isAuthenticated && user && user.role === "loket" && !isLoginPage) {
+      router.replace("/loket");
+    }
+  }, [isLoading, isAuthenticated, isLoginPage, router, user]);
 
   // Show loading while validating token
   if (isLoading) {
@@ -38,8 +42,8 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  // Not authenticated — show nothing while redirecting
-  if (!isAuthenticated) {
+  // Not authenticated / unauthorized — show nothing while redirecting
+  if (!isAuthenticated || user?.role === "loket") {
     return null;
   }
 

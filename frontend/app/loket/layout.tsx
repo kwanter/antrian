@@ -20,9 +20,15 @@ export default function LoketLayout({ children }: { children: React.ReactNode })
     if (!isLoginPage && !isLoading && !isAuthenticated) {
       router.replace("/loket/login");
     }
-  }, [isLoginPage, isLoading, isAuthenticated, router]);
+    // Role guard: admin/super must stay in admin panel
+    if (!isLoginPage && !isLoading && isAuthenticated && user && user.role !== "loket") {
+      router.replace("/");
+    }
+  }, [isLoginPage, isLoading, isAuthenticated, router, user]);
 
-  if (!isLoginPage && (isLoading || !isAuthenticated)) {
+  const isUnauthorized = !isLoginPage && isAuthenticated && user && user.role !== "loket";
+
+  if (!isLoginPage && (isLoading || !isAuthenticated || isUnauthorized)) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <p className="text-slate-500">Memuat...</p>
