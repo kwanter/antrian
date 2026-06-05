@@ -22,11 +22,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const { impersonate } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -87,6 +89,18 @@ export default function UsersPage() {
     },
   });
 
+  // Preview loket mutation — switches current session into loket mode
+  const previewMutation = useMutation({
+    mutationFn: async (user: User) => impersonate(user.id),
+    onSuccess: (user) => {
+      toast.success(`Mode preview loket: ${user.name}`);
+      window.location.assign("/loket");
+    },
+    onError: () => {
+      toast.error("Gagal masuk mode preview loket");
+    },
+  });
+
   const handleOpenCreate = () => {
     setEditingUser(null);
     setDialogOpen(true);
@@ -109,6 +123,16 @@ export default function UsersPage() {
   const handleDelete = (user: User) => {
     if (confirm(`Apakah Anda yakin ingin menghapus pengguna "${user.name}"?`)) {
       deleteMutation.mutate(user.id);
+    }
+  };
+
+  const handlePreview = (user: User) => {
+    if (
+      confirm(
+        `Masuk mode preview sebagai "${user.name}"? Anda akan melihat loket mereka dan semua tindakan akan dicatat atas nama Anda di audit log.`,
+      )
+    ) {
+      previewMutation.mutate(user);
     }
   };
 
@@ -188,6 +212,12 @@ export default function UsersPage() {
                           <span className="sr-only">Buka menu</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {user.role === "loket" && user.is_active && (
+                            <DropdownMenuItem onClick={() => handlePreview(user)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Preview Loket
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit

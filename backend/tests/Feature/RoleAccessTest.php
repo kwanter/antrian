@@ -439,4 +439,179 @@ class RoleAccessTest extends TestCase
         $response = $this->getJson('/api/v1/layanans');
         $response->assertOk();
     }
+
+    // ────────────────────────────────────────────
+    // Impersonation
+    // ────────────────────────────────────────────
+
+    public function test_admin_can_impersonate_loket(): void
+    {
+        $admin = $this->createUser('admin');
+        $loket = $this->createLoketWithCounter();
+
+        $response = $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$loket->id}");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.user.id', $loket->id);
+        $response->assertJsonPath('data.impersonator.id', $admin->id);
+
+        // Audit log entry attributed to the real admin
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'impersonate.start',
+            'user_id' => $admin->id,
+            'model_id' => $loket->id,
+        ]);
+    }
+
+    public function test_super_can_impersonate_loket(): void
+    {
+        $super = $this->createUser('super');
+        $loket = $this->createLoketWithCounter();
+
+        $response = $this->actingAs($super)->postJson("/api/v1/auth/impersonate/{$loket->id}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'impersonate.start',
+            'user_id' => $super->id,
+        ]);
+    }
+
+    public function test_loket_cannot_impersonate(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $target = $this->createLoketWithCounter();
+
+        $response = $this->actingAs($loket)->postJson("/api/v1/auth/impersonate/{$target->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_cannot_impersonate_another_admin(): void
+    {
+        $admin = $this->createUser('admin');
+        $otherAdmin = $this->createUser('admin');
+
+        $response = $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$otherAdmin->id}");
+
+        $response->assertStatus(422);
+        $response->assertJson(['code' => 'NOT_LOKET_USER']);
+    }
+
+    public function test_admin_cannot_impersonate_inactive_loket(): void
+    {
+        $admin = $this->createUser('admin');
+        $inactive = User::factory()->create([
+            'role' => 'loket',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$inactive->id}");
+
+        $response->assertStatus(422);
+        $response->assertJson(['code' => 'TARGET_INACTIVE']);
+    }
+
+    public function test_admin_cannot_impersonate_loket_without_counter(): void
+    {
+        $admin = $this->createUser('admin');
+        $noCounter = User::factory()->create([
+            'role' => 'loket',
+            'is_active' => true,
+            'counter_id' => null,
+        ]);
+
+        $response = $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$noCounter->id}");
+
+        $response->assertStatus(422);
+        $response->assertJson(['code' => 'TARGET_COUNTER_NOT_ASSIGNED']);
+    }
+
+    public function test_impersonate_returns_404_for_missing_user(): void
+    {
+        $admin = $this->createUser('admin');
+
+        $response = $this->actingAs($admin)->postJson('/api/v1/auth/impersonate/9999');
+
+        $response->assertStatus(404);
+        $response->assertJson(['code' => 'USER_NOT_FOUND']);
+    }
+
+    public function test_nested_impersonation_blocked(): void
+    {
+        $admin = $this->createUser('admin');
+        $loket = $this->createLoketWithCounter();
+        $otherLoket = $this->createLoketWithCounter();
+
+        $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$loket->id}")->assertStatus(200);
+
+        // While impersonating, attempting to impersonate again must fail.
+        $response = $this->postJson("/api/v1/auth/impersonate/{$otherLoket->id}");
+        $response->assertStatus(409);
+        $response->assertJson(['code' => 'ALREADY_IMPERSONATING']);
+    }
+
+    public function test_impersonated_user_sees_impersonation_flag_in_me(): void
+    {
+        $admin = $this->createUser('admin');
+        $loket = $this->createLoketWithCounter();
+
+        $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$loket->id}")->assertStatus(200);
+
+        // In a real browser, session would carry the impersonated identity.
+        // In tests we need to switch the acting identity to verify /me reflects it.
+        $response = $this->actingAs($loket)->getJson('/api/v1/auth/me');
+        $response->assertOk();
+        $response->assertJsonPath('data.id', $loket->id);
+        $response->assertJsonPath('is_impersonating', true);
+        $response->assertJsonPath('impersonator.id', $admin->id);
+    }
+
+    public function test_admin_can_stop_impersonation_and_restore_session(): void
+    {
+        $admin = $this->createUser('admin');
+        $loket = $this->createLoketWithCounter();
+
+        $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$loket->id}")->assertStatus(200);
+
+        $response = $this->postJson('/api/v1/auth/stop-impersonation');
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.user.id', $admin->id);
+
+        // /me should no longer show impersonation
+        $this->getJson('/api/v1/auth/me')
+            ->assertJsonMissingPath('is_impersonating');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'impersonate.stop',
+            'user_id' => $admin->id,
+        ]);
+    }
+
+    public function test_stop_impersonation_without_active_session_returns_400(): void
+    {
+        $admin = $this->createUser('admin');
+
+        $response = $this->actingAs($admin)->postJson('/api/v1/auth/stop-impersonation');
+
+        $response->assertStatus(400);
+        $response->assertJson(['code' => 'NOT_IMPERSONATING']);
+    }
+
+    public function test_impersonator_crediting_preserved_in_audit(): void
+    {
+        $admin = $this->createUser('admin');
+        $loket = $this->createLoketWithCounter();
+
+        $this->actingAs($admin)->postJson("/api/v1/auth/impersonate/{$loket->id}")->assertStatus(200);
+
+        // While impersonating, /me returns loket's id, but the audit row's
+        // user_id should be the real admin (not the impersonated target).
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'impersonate.start',
+            'user_id' => $admin->id,
+            'model_id' => $loket->id,
+        ]);
+    }
 }

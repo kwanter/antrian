@@ -5,14 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, Eye } from "lucide-react";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, isImpersonating, impersonator, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -67,6 +67,26 @@ export default function AdminLayout({
             </div>
           )}
         </header>
+
+        {/* Impersonation banner — only visible when active */}
+        {isImpersonating && impersonator && (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-300 bg-amber-100 px-6 py-2 text-amber-900">
+            <div className="flex items-center gap-2 text-sm">
+              <Eye className="h-4 w-4" />
+              <span>
+                Mode preview: Anda masuk sebagai{" "}
+                <strong>{user?.name}</strong> ({user?.email}). Semua
+                tindakan akan tercatat atas nama {impersonator.name}.
+              </span>
+            </div>
+            <a
+              href="/users"
+              className="rounded-md border border-amber-400 bg-white px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-50"
+            >
+              Kelola Pengguna
+            </a>
+          </div>
+        )}
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

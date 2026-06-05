@@ -52,6 +52,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
+    Route::post('/auth/stop-impersonation', [AuthController::class, 'stopImpersonation']);
 
     // Queues
     Route::get('/queues', [QueuesController::class, 'index']);
@@ -69,6 +70,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Admin/super management routes. Loket users must never reach these APIs.
     Route::middleware('role:admin,super')->group(function () {
+        // Impersonate — admin can preview as loket
+        Route::post('/auth/impersonate/{userId}', [AuthController::class, 'impersonate']);
         // Counters
         Route::get('/counters', [CountersController::class, 'index']);
         Route::post('/counters', [CountersController::class, 'store']);
