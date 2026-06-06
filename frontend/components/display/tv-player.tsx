@@ -18,7 +18,7 @@ interface TvVideoPlayerProps {
 //  - simplified: no backdrop-filter, basic flex only
 //  - retry play on canplay, catch all errors silently
 
-function canPlayVideoMime(videos: Video[]): string {
+function canPlayVideoMime(): string {
   const testEl = document.createElement("video");
   const candidates = ["video/mp4", "video/webm", "video/ogg"];
   for (const mime of candidates) {
@@ -38,7 +38,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
   const hasAudioUnlockedRef = useRef(false);
   const lastErrorRef = useRef<string | null>(null);
   const volumeRef = useRef(Math.min(100, Math.max(0, volume)));
-  const mutedRef = useRef(volumeRef.current === 0);
+  const mutedRef = useRef(volume === 0);
 
   useEffect(() => {
     playlistRef.current = videos;
@@ -134,7 +134,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
     return () => {
       isLoadingRef.current = false;
     };
-  }, [started, currentIndex, videos]);
+  }, [started, currentIndex, videos, onError]);
 
   // Keyboard: Enter/OK to unlock audio
   useEffect(() => {
@@ -151,8 +151,8 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
 
   const currentVideo = videos[currentIndex];
   const hasVideos = videos.length > 0;
-  const isMuted = volumeRef.current === 0;
-  const supportedMime = canPlayVideoMime(videos);
+  const isMuted = volume === 0;
+  const supportedMime = canPlayVideoMime();
 
   if (!hasVideos) {
     return (
@@ -211,7 +211,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
               <path d="M16 9a5 5 0 0 1 0 6M19.364 18.364a9 9 0 0 0 0-12.728" />
             </svg>
           )}
-          <span className="text-white/70 text-sm">{volumeRef.current}%</span>
+          <span className="text-white/70 text-sm">{volume}%</span>
         </div>
 
         {/* Codec info */}
@@ -283,7 +283,7 @@ export function TvVideoPlayer({ videos = [], volume, onError }: TvVideoPlayerPro
               <path d="M16 9a5 5 0 0 1 0 6M19.364 18.364a9 9 0 0 0 0-12.728" />
             </svg>
           )}
-          <span className="text-white/70 text-xs">{volumeRef.current}%</span>
+          <span className="text-white/70 text-xs">{volume}%</span>
         </div>
       </div>
     </div>

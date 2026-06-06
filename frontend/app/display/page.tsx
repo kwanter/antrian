@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Volume2, Play, AlertCircle, Wifi, WifiOff } from "lucide-react";
+import { Loader2, Volume2, Play, AlertCircle } from "lucide-react";
 import { VideoPlayer } from "@/components/display/video-player";
 import { TvVideoPlayer } from "@/components/display/tv-player";
 import { TvDebugOverlay } from "@/components/display/tv-debug-overlay";
@@ -83,6 +83,13 @@ function LayananPanel({
       .catch(() => setQueues([]));
   }, [layanan.id, counterId]);
 
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const sorted = useMemo(() => {
     return [...queues].sort(
       (a, b) => new Date(b.called_at ?? 0).getTime() - new Date(a.called_at ?? 0).getTime()
@@ -99,19 +106,9 @@ function LayananPanel({
       layanan={layanan}
       currentQueue={current}
       recentQueues={recent}
+      now={now}
     />
   );
-}
-
-function formatTimeAgo(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Baru saja";
-  if (minutes === 1) return "1 menit lalu";
-  if (minutes < 60) return `${minutes} menit lalu`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours} jam lalu`;
 }
 
 function minToText(min: number): string {
@@ -125,10 +122,12 @@ function LayananQueueCard({
   layanan,
   currentQueue,
   recentQueues,
+  now,
 }: {
   layanan: Layanan;
   currentQueue: { id: number; ticket_number: string; status: string; counter?: { name: string }; called_at: string | null; completed_at: string | null } | null;
   recentQueues: { id: number; ticket_number: string; counter?: { name: string }; called_at: string | null; completed_at: string | null }[];
+  now: number;
 }) {
   return (
     <div className="flex flex-col bg-white/90 rounded-2xl shadow-xl overflow-hidden border border-slate-200">
@@ -171,7 +170,7 @@ function LayananQueueCard({
                   : "Dipanggil"}{" "}
                 {minToText(
                   Math.floor(
-                    (Date.now() - new Date(currentQueue.called_at ?? Date.now()).getTime()) /
+                    (now - new Date(currentQueue.called_at ?? now).getTime()) /
                       60000
                   )
                 )}
@@ -212,8 +211,8 @@ function LayananQueueCard({
                 <span className="text-[10px] text-emerald-600">
                   ✓ {minToText(
                     Math.floor(
-                      (Date.now() -
-                        new Date(q.completed_at ?? q.called_at ?? Date.now()).getTime()) /
+                      (now -
+                        new Date(q.completed_at ?? q.called_at ?? now).getTime()) /
                         60000
                     )
                   )}
@@ -279,31 +278,23 @@ function DisplayContent() {
   const [tvStarted, setTvStarted] = useState(!isTv); // auto-start for non-TV
 
   // Debug state
-  const [debug, setDebug] = useState<TvDebugInfo>({
-    ua: "",
-    isTv: false,
-    speechSynthesis: false,
-    webSocket: false,
+  const [debug, setDebug] = useState<TvDebugInfo>(() => ({
+    ua: typeof navigator === "undefined" ? "" : navigator.userAgent,
+    isTv,
+    speechSynthesis: typeof window !== "undefined" && "speechSynthesis" in window,
+    webSocket: typeof window !== "undefined" && "WebSocket" in window,
     wsConnected: false,
     lastSync: null,
     lastAnnouncement: null,
     lastError: null,
     videoErrors: [],
     announcerBlocked: false,
-  });
+  }));
   const debugRef = useRef(debug);
-  debugRef.current = debug;
 
-  // Initialize debug info
   useEffect(() => {
-    setDebug((d) => ({
-      ...d,
-      ua: navigator.userAgent,
-      isTv,
-      speechSynthesis: "speechSynthesis" in window,
-      webSocket: "WebSocket" in window,
-    }));
-  }, [isTv]);
+    debugRef.current = debug;
+  }, [debug]);
 
   // Fetch display config
   useEffect(() => {
@@ -343,6 +334,69 @@ function DisplayContent() {
 
   // WebSocket: display-sync
   const lastAnnouncementRef = useRef<string | null>(null);
+
+  const playAnnouncement = useCallback(
+    async (queue: Queue) => {
+      if (!display || display.settings?.announcer_enabled === false) return;
+
+      const announcerVolume = Math.min(1, Math.max(0, display.settings?.announcer_volume ?? 1));
+
+      // 1) Try backend dynamic TTS (edge-tts, female Indonesian voice)
+      try {
+        const res = await api.get(`/tts/queue/${queue.id}`);
+        const { audio_url } = res.data;
+        if (audio_url) {
+          const audio = new Audio(resolveBackendUrl(audio_url));
+          audio.volume = announcerVolume;
+          await audio.play();
+          setSoundBlocked(false);
+          setDebug((d) => ({ ...d, announcerBlocked: false }));
+          return;
+        }
+      } catch {
+        // fall through
+      }
+
+      // 2) Fallback: uploaded announcer sound
+      const soundUrl = display.settings?.announcer_sound_url;
+      if (soundUrl?.startsWith("/storage/announcers/")) {
+        const audio = new Audio(resolveBackendUrl(soundUrl));
+        audio.volume = announcerVolume;
+        try {
+          await audio.play();
+          setSoundBlocked(false);
+          setDebug((d) => ({ ...d, announcerBlocked: false }));
+          return;
+        } catch {
+          setSoundBlocked(true);
+          setDebug((d) => ({ ...d, announcerBlocked: true }));
+          return;
+        }
+      }
+
+      // 3) Last-ditch: browser speechSynthesis (robotic, not ideal)
+      if (!("speechSynthesis" in window)) {
+        setDebug((d) => ({ ...d, announcerBlocked: true }));
+        return;
+      }
+
+      try {
+        const counterName = queue.counter?.name ?? "loket";
+        const message = `Nomor antrian ${queue.ticket_number}, silakan menuju ${counterName}`;
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = "id-ID";
+        utterance.volume = announcerVolume;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        setSoundBlocked(false);
+        setDebug((d) => ({ ...d, announcerBlocked: false }));
+      } catch {
+        setSoundBlocked(true);
+        setDebug((d) => ({ ...d, announcerBlocked: true }));
+      }
+    },
+    [display]
+  );
 
   useDisplayChannel((event) => {
     if (!display) return;
@@ -411,68 +465,7 @@ function DisplayContent() {
 
   const volume = volumeOverride ?? configuredVolume;
 
-  const playAnnouncement = useCallback(
-    async (queue: Queue) => {
-      if (!display || display.settings?.announcer_enabled === false) return;
 
-      const announcerVolume = Math.min(1, Math.max(0, display.settings?.announcer_volume ?? 1));
-
-      // 1) Try backend dynamic TTS (edge-tts, female Indonesian voice)
-      try {
-        const res = await api.get(`/tts/queue/${queue.id}`);
-        const { audio_url } = res.data;
-        if (audio_url) {
-          const audio = new Audio(resolveBackendUrl(audio_url));
-          audio.volume = announcerVolume;
-          await audio.play();
-          setSoundBlocked(false);
-          setDebug((d) => ({ ...d, announcerBlocked: false }));
-          return;
-        }
-      } catch {
-        // fall through
-      }
-
-      // 2) Fallback: uploaded announcer sound
-      const soundUrl = display.settings?.announcer_sound_url;
-      if (soundUrl?.startsWith("/storage/announcers/")) {
-        const audio = new Audio(resolveBackendUrl(soundUrl));
-        audio.volume = announcerVolume;
-        try {
-          await audio.play();
-          setSoundBlocked(false);
-          setDebug((d) => ({ ...d, announcerBlocked: false }));
-          return;
-        } catch {
-          setSoundBlocked(true);
-          setDebug((d) => ({ ...d, announcerBlocked: true }));
-          return;
-        }
-      }
-
-      // 3) Last-ditch: browser speechSynthesis (robotic, not ideal)
-      if (!("speechSynthesis" in window)) {
-        setDebug((d) => ({ ...d, announcerBlocked: true }));
-        return;
-      }
-
-      try {
-        const counterName = queue.counter?.name ?? "loket";
-        const message = `Nomor antrian ${queue.ticket_number}, silakan menuju ${counterName}`;
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = "id-ID";
-        utterance.volume = announcerVolume;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-        setSoundBlocked(false);
-        setDebug((d) => ({ ...d, announcerBlocked: false }));
-      } catch {
-        setSoundBlocked(true);
-        setDebug((d) => ({ ...d, announcerBlocked: true }));
-      }
-    },
-    [display]
-  );
 
   const enableSound = () => {
     setSoundBlocked(false);
