@@ -282,6 +282,7 @@ class QueueLifecycleServiceTest extends TestCase
         $result = $this->service->call($queue, $loket);
 
         $this->assertSame('called', $result->status);
+        $this->assertSame($loket->name, $result->called_by_name);
         $this->assertDatabaseHas('queues', [
             'id' => $queue->id,
             'status' => 'called',
