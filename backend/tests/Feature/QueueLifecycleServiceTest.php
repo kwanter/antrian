@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Counter;
+use App\Models\Layanan;
 use App\Models\Queue;
 use App\Models\User;
 use App\Services\Exceptions\QueueLifecycleException;
@@ -476,5 +477,54 @@ class QueueLifecycleServiceTest extends TestCase
             'model_id' => $queue->id,
             'user_id' => $loket->id,
         ]);
+    }
+
+    // ── store() tests ─────────────────────────────────────────────
+
+    public function test_store_creates_queue_with_default_ticket_prefix(): void
+    {
+        $queue = $this->service->store([
+            'service_type' => 'Consultation',
+        ]);
+
+        $this->assertSame('waiting', $queue->status);
+        $this->assertStringStartsWith('A', $queue->ticket_number);
+        $this->assertSame('Consultation', $queue->service_type);
+        $this->assertNull($queue->layanan_id);
+        $this->assertDatabaseHas('queue_logs', [
+            'queue_id' => $queue->id,
+            'action' => QueueLifecycleService::LOG_CREATED,
+            'performed_by' => 'kiosk',
+        ]);
+    }
+
+    public function test_store_creates_queue_with_layanan_prefix(): void
+    {
+        $counter = Counter::factory()->create();
+        $layanan = Layanan::factory()->create([
+            'code' => 'TELLER',
+            'counter_id' => $counter->id,
+        ]);
+
+        $queue = $this->service->store([
+            'layanan_id' => $layanan->id,
+        ]);
+
+        $this->assertStringStartsWith('TEL', $queue->ticket_number);
+        $this->assertSame($layanan->id, $queue->layanan_id);
+        $this->assertSame($counter->id, $queue->counter_id);
+    }
+
+    public function test_store_increments_ticket_number(): void
+    {
+        // First ticket
+        $q1 = $this->service->store(['service_type' => 'A']);
+        // Second ticket
+        $q2 = $this->service->store(['service_type' => 'B']);
+
+        preg_match('/(\d+)$/', $q1->ticket_number, $m1);
+        preg_match('/(\d+)$/', $q2->ticket_number, $m2);
+
+        $this->assertSame((int) $m1[1] + 1, (int) $m2[1]);
     }
 }

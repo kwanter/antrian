@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Events\QueueCalled;
 use App\Events\QueueCompleted;
+use App\Events\QueueCreated;
 use App\Events\QueueSkipped;
 use App\Models\AuditLog;
 use App\Models\Counter;
+use App\Models\Layanan;
 use App\Models\Queue;
 use App\Models\QueueLog;
 use App\Models\User;
@@ -35,6 +37,8 @@ class QueueLifecycleService
     public const LOG_CALLED = 'called';
 
     public const LOG_COMPLETED = 'completed';
+
+    public const LOG_CREATED = 'created';
 
     /** AuditLog action strings. */
     public const AUDIT_RECALL = 'recall';
@@ -388,6 +392,97 @@ class QueueLifecycleService
         }
 
         return $queue;
+    }
+
+    /**
+     * Create a new queue ticket (kiosk / public intake).
+     *
+     * Generates a daily-scoped, per-layanan ticket number, then attaches the
+     * ticket to the layanan's default counter when one exists. Writes a
+     * QueueLog entry with action "created" performed by "kiosk" (matches the
+     * pre-extraction controller exactly) and broadcasts QueueCreated.
+     *
+     * @param  array{
+     *   layanan_id?: int|null,
+     *   service_type?: string|null,
+     *   customer_name?: string|null,
+     *   customer_phone?: string|null,
+     * }  $data  Validated payload from StoreQueueRequest.
+     */
+    public function store(array $data): Queue
+    {
+        $ticketNumber = $this->generateTicketNumber($data['layanan_id'] ?? null);
+
+        $serviceType = $data['service_type'] ?? null;
+        $counterId = null;
+
+        if (! empty($data['layanan_id'])) {
+            $layanan = Layanan::with('counter')->find($data['layanan_id']);
+            if ($layanan && $layanan->counter) {
+                $counterId = $layanan->counter->id;
+                $serviceType = $serviceType ?? $layanan->name;
+            }
+        }
+
+        $queue = Queue::create([
+            'ticket_number' => $ticketNumber,
+            'service_type' => $serviceType,
+            'layanan_id' => $data['layanan_id'] ?? null,
+            'counter_id' => $counterId,
+            'customer_name' => $data['customer_name'] ?? null,
+            'customer_phone' => $data['customer_phone'] ?? null,
+            'status' => 'waiting',
+        ]);
+
+        QueueLog::create([
+            'queue_id' => $queue->id,
+            'action' => self::LOG_CREATED,
+            'performed_by' => 'kiosk',
+            'metadata' => [
+                'service_type' => $queue->service_type,
+                'layanan_id' => $queue->layanan_id,
+            ],
+        ]);
+
+        try {
+            broadcast(new QueueCreated($queue));
+        } catch (\Throwable $e) {
+            Log::warning('Broadcast failed: '.$e->getMessage());
+        }
+
+        return $queue->load('counter', 'layanan');
+    }
+
+    /**
+     * Generate the next ticket number for a given layanan (or the default
+     * prefix when no layanan is given). Mirrors the old
+     * QueuesController::generateTicketNumber exactly: today's queues only,
+     * the suffix increments from the trailing digits of the last queue's
+     * ticket number; the prefix comes from the first three characters of
+     * the layanan code, uppercased.
+     */
+    protected function generateTicketNumber(?int $layananId = null): string
+    {
+        $prefix = 'A';
+        $query = Queue::whereDate('created_at', today());
+
+        if ($layananId) {
+            $layanan = Layanan::find($layananId);
+            if ($layanan) {
+                $prefix = strtoupper(substr($layanan->code, 0, 3));
+            }
+            $query->where('layanan_id', $layananId);
+        }
+
+        $lastQueue = $query->orderBy('id', 'desc')->first();
+
+        if ($lastQueue && preg_match('/(\d+)$/', $lastQueue->ticket_number, $matches)) {
+            $sequence = (int) $matches[1] + 1;
+        } else {
+            $sequence = 1;
+        }
+
+        return $prefix.str_pad($sequence, 3, '0', STR_PAD_LEFT);
     }
 
     /**

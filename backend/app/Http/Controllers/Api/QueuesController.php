@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\QueueCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQueueRequest;
 use App\Models\Counter;
 use App\Models\Layanan;
 use App\Models\Queue;
-use App\Models\QueueLog;
 use App\Models\User;
 use App\Services\Exceptions\QueueLifecycleException;
 use App\Services\QueueLifecycleService;
@@ -103,44 +101,10 @@ class QueuesController extends Controller
 
     public function store(StoreQueueRequest $request): JsonResponse
     {
-        $ticketNumber = $this->generateTicketNumber($request->layanan_id);
-
-        $serviceType = $request->service_type;
-        $counterId = null;
-
-        if ($request->filled('layanan_id')) {
-            $layanan = Layanan::with('counter')->find($request->layanan_id);
-            if ($layanan && $layanan->counter) {
-                $counterId = $layanan->counter->id;
-                $serviceType = $serviceType ?? $layanan->name;
-            }
-        }
-
-        $queue = Queue::create([
-            'ticket_number' => $ticketNumber,
-            'service_type' => $serviceType,
-            'layanan_id' => $request->layanan_id,
-            'counter_id' => $counterId,
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $request->customer_phone,
-            'status' => 'waiting',
-        ]);
-
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => 'created',
-            'performed_by' => 'kiosk',
-            'metadata' => ['service_type' => $queue->service_type, 'layanan_id' => $queue->layanan_id],
-        ]);
-
-        try {
-            broadcast(new QueueCreated($queue));
-        } catch (\Throwable $e) {
-            Log::warning('Broadcast failed: '.$e->getMessage());
-        }
+        $queue = $this->lifecycle->store($request->validated());
 
         return response()->json([
-            'data' => $queue->load('counter', 'layanan'),
+            'data' => $queue,
             'message' => 'Queue ticket created successfully',
         ], 201);
     }
@@ -323,30 +287,6 @@ class QueuesController extends Controller
         ];
 
         return response()->json(['data' => $stats]);
-    }
-
-    protected function generateTicketNumber(?int $layananId = null): string
-    {
-        $prefix = 'A';
-        $query = Queue::whereDate('created_at', today());
-
-        if ($layananId) {
-            $layanan = Layanan::find($layananId);
-            if ($layanan) {
-                $prefix = strtoupper(substr($layanan->code, 0, 3));
-            }
-            $query->where('layanan_id', $layananId);
-        }
-
-        $lastQueue = $query->orderBy('id', 'desc')->first();
-
-        if ($lastQueue && preg_match('/(\d+)$/', $lastQueue->ticket_number, $matches)) {
-            $sequence = (int) $matches[1] + 1;
-        } else {
-            $sequence = 1;
-        }
-
-        return $prefix.str_pad($sequence, 3, '0', STR_PAD_LEFT);
     }
 
     protected function calculateAvgWaitMinutes(): float
