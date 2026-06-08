@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Counter;
+use App\Models\Display;
 use App\Models\KioskStation;
 use App\Models\Layanan;
+use App\Models\PrinterProfile;
 use App\Models\Queue;
 use App\Models\User;
+use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -613,5 +616,159 @@ class RoleAccessTest extends TestCase
             'user_id' => $admin->id,
             'model_id' => $loket->id,
         ]);
+    }
+
+    // ────────────────────────────────────────────
+    // Track C regression gaps — admin-only write surfaces
+    // previously enforced by route middleware but untested.
+    // ────────────────────────────────────────────
+
+    public function test_loket_cannot_manage_videos(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $video = Video::create([
+            'display_id' => Display::create(['name' => 'D1', 'location' => 'Lobby'])->id,
+            'file_url' => '/videos/x.mp4',
+            'title' => 'X',
+            'duration' => 10,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($loket)->postJson('/api/v1/videos', [
+            'title' => 'X',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->putJson("/api/v1/videos/{$video->id}", [
+            'title' => 'Y',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->deleteJson("/api/v1/videos/{$video->id}")->assertStatus(403);
+        $this->actingAs($loket)->postJson('/api/v1/videos/reorder', [
+            'order' => [],
+        ])->assertStatus(403);
+    }
+
+    public function test_loket_cannot_manage_display_writes(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $display = Display::create(['name' => 'D1', 'location' => 'Lobby']);
+
+        $this->actingAs($loket)->postJson('/api/v1/displays', [
+            'name' => 'D1',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->putJson("/api/v1/displays/{$display->id}", [
+            'name' => 'D2',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->deleteJson("/api/v1/displays/{$display->id}")->assertStatus(403);
+        $this->actingAs($loket)->postJson("/api/v1/displays/{$display->id}/volume", [
+            'volume' => 0.5,
+        ])->assertStatus(403);
+        $this->actingAs($loket)->postJson("/api/v1/displays/{$display->id}/announcer", [
+            'announcer' => 'x',
+        ])->assertStatus(403);
+    }
+
+    public function test_loket_cannot_manage_printer_profiles(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $profile = PrinterProfile::factory()->create();
+
+        // List + show are admin-only (only /printer-profiles/default is public).
+        $this->actingAs($loket)->getJson('/api/v1/printer-profiles')->assertStatus(403);
+        $this->actingAs($loket)->postJson('/api/v1/printer-profiles', [
+            'name' => 'P1',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->putJson("/api/v1/printer-profiles/{$profile->id}", [
+            'name' => 'P2',
+        ])->assertStatus(403);
+        $this->actingAs($loket)->deleteJson("/api/v1/printer-profiles/{$profile->id}")->assertStatus(403);
+    }
+
+    public function test_loket_cannot_manage_counter_assignment(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $counter = Counter::factory()->create();
+        $target = $this->createUser('loket');
+
+        $this->actingAs($loket)->postJson("/api/v1/counters/{$counter->id}/assign-user", [
+            'user_id' => $target->id,
+        ])->assertStatus(403);
+        $this->actingAs($loket)->postJson("/api/v1/counters/{$counter->id}/unassign-user", [
+            'user_id' => $target->id,
+        ])->assertStatus(403);
+        $this->actingAs($loket)->postJson("/api/v1/counters/{$counter->id}/sync-users", [
+            'user_ids' => [$target->id],
+        ])->assertStatus(403);
+    }
+
+    // ────────────────────────────────────────────
+    // Track C regression gaps — loket queue ops counter scoping
+    // ────────────────────────────────────────────
+
+    public function test_loket_cannot_recall_or_skip_foreign_queue(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $otherCounter = Counter::factory()->create();
+
+        $foreignCalled = $this->createQueueForCounter($otherCounter, 'called');
+        $this->actingAs($loket)->postJson("/api/v1/queues/{$foreignCalled->id}/recall")
+            ->assertStatus(403);
+
+        $foreignWaiting = $this->createQueueForCounter($otherCounter, 'waiting');
+        $this->actingAs($loket)->postJson("/api/v1/queues/{$foreignWaiting->id}/skip")
+            ->assertStatus(403);
+    }
+
+    public function test_loket_cannot_call_next_for_foreign_counter(): void
+    {
+        $loket = $this->createLoketWithCounter();
+        $otherCounter = Counter::factory()->create();
+
+        $response = $this->actingAs($loket)
+            ->postJson("/api/v1/counters/{$otherCounter->id}/call-next");
+        $response->assertStatus(403);
+    }
+
+    // ────────────────────────────────────────────
+    // Track C regression gaps — public read surfaces stay public
+    // ────────────────────────────────────────────
+
+    public function test_guest_can_access_tts_and_layanan_detail(): void
+    {
+        $layanan = Layanan::create([
+            'name' => 'Umum',
+            'code' => 'UMM',
+            'is_active' => true,
+        ]);
+
+        // Layanan show + queues are public for kiosk/display polling.
+        $this->getJson("/api/v1/layanans/{$layanan->id}")->assertOk();
+        $this->getJson("/api/v1/layanans/{$layanan->id}/queues")->assertOk();
+
+        // TTS is public for the TV display announcer.
+        $queue = $this->createQueueForCounter(Counter::factory()->create(), 'called');
+        $response = $this->getJson("/api/v1/tts/queue/{$queue->id}");
+        // 200 when audio synthesizes; some envs without edge-tts return 500,
+        // but the route itself must not be auth-gated (never 401/403).
+        $this->assertNotContains($response->getStatusCode(), [401, 403]);
+    }
+
+    public function test_guest_cannot_view_video_detail(): void
+    {
+        // Video listing is public, but detail requires authentication.
+        $this->getJson('/api/v1/videos/1')->assertStatus(401);
+    }
+
+    // ────────────────────────────────────────────
+    // Track C regression gaps — super role parity with admin
+    // ────────────────────────────────────────────
+
+    public function test_super_has_same_access_as_admin(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)->getJson('/api/v1/users')->assertOk();
+        $this->actingAs($super)->getJson('/api/v1/counters')->assertOk();
+        $this->actingAs($super)->getJson('/api/v1/audit-logs')->assertOk();
+        $this->actingAs($super)->getJson('/api/v1/kiosk-stations')->assertOk();
+        $this->actingAs($super)->getJson('/api/v1/printer-profiles')->assertOk();
     }
 }
