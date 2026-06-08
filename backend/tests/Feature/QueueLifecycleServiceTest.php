@@ -148,4 +148,77 @@ class QueueLifecycleServiceTest extends TestCase
             'user_id' => $loket->id,
         ]);
     }
+
+    public function test_skip_throws_for_foreign_counter(): void
+    {
+        $loket = $this->loketWithCounter();
+        $otherCounter = Counter::factory()->create();
+        $foreign = $this->queueFor($otherCounter, 'waiting');
+
+        try {
+            $this->service->skip($foreign, $loket);
+            $this->fail('Expected QueueLifecycleException for foreign counter');
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('FORBIDDEN', $e->errorCode());
+            $this->assertSame(403, $e->statusCode());
+        }
+    }
+
+    public function test_skip_throws_for_invalid_status(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'completed');
+
+        try {
+            $this->service->skip($queue, $loket);
+            $this->fail('Expected QueueLifecycleException for invalid status');
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('INVALID_STATUS', $e->errorCode());
+            $this->assertSame(400, $e->statusCode());
+            $this->assertSame('Queue cannot be skipped in current status', $e->getMessage());
+        }
+    }
+
+    public function test_skip_transitions_waiting_queue_to_skipped(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'waiting');
+
+        $result = $this->service->skip($queue, $loket);
+
+        $this->assertSame('skipped', $result->status);
+        $this->assertDatabaseHas('queues', [
+            'id' => $queue->id,
+            'status' => 'skipped',
+        ]);
+        $this->assertDatabaseHas('queue_logs', [
+            'queue_id' => $queue->id,
+            'action' => QueueLifecycleService::LOG_SKIPPED,
+            'performed_by' => $loket->name,
+        ]);
+    }
+
+    public function test_skip_credits_explicit_audit_user_id(): void
+    {
+        $loket = $this->loketWithCounter();
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $queue = $this->queueFor($loket->counter, 'called');
+
+        $this->service->skip(
+            queue: $queue,
+            actor: $loket,
+            auditUserId: $admin->id,
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_SKIP,
+            'model_id' => $queue->id,
+            'user_id' => $admin->id,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_SKIP,
+            'model_id' => $queue->id,
+            'user_id' => $loket->id,
+        ]);
+    }
 }

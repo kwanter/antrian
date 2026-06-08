@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Events\QueueCalled;
 use App\Events\QueueCompleted;
 use App\Events\QueueCreated;
-use App\Events\QueueSkipped;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQueueRequest;
 use App\Models\AuditLog;
@@ -335,47 +334,26 @@ class QueuesController extends Controller
     {
         $user = $request->user();
 
-        if (! $this->canOperateOnCounter($user, $queue->counter_id)) {
-            return response()->json([
-                'message' => 'You are not authorized to skip this queue',
-            ], 403);
-        }
+        // If an admin is previewing as loket, credit the audit log to the
+        // real admin (impersonation pitfall #19), not the impersonated user.
+        $auditUserId = $request->session()->get('impersonator_id') ?? $user->id;
 
-        if (! $queue->isWaiting() && ! $queue->isCalled()) {
-            return response()->json([
-                'message' => 'Queue cannot be skipped in current status',
-            ], 400);
-        }
-
-        $previousStatus = $queue->status;
-        $queue->skip();
-
-        // Log the action
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => 'skipped',
-            'performed_by' => $user->name,
-        ]);
-
-        // Audit log
-        AuditLog::log(
-            action: 'skip',
-            model: 'Queue',
-            modelId: $queue->id,
-            changes: ['status' => ['from' => $previousStatus, 'to' => 'skipped']],
-            ipAddress: $request->ip(),
-            userId: $user->id
-        );
-
-        // Broadcast event
         try {
-            broadcast(new QueueSkipped($queue));
-        } catch (\Throwable $e) {
-            Log::warning('Broadcast failed: '.$e->getMessage());
+            $queue = $this->lifecycle->skip(
+                queue: $queue,
+                actor: $user,
+                auditUserId: (int) $auditUserId,
+                ipAddress: $request->ip(),
+            );
+        } catch (QueueLifecycleException $e) {
+            return response()->json([
+                'code' => $e->errorCode(),
+                'message' => $e->getMessage(),
+            ], $e->statusCode());
         }
 
         return response()->json([
-            'data' => $queue->load('counter'),
+            'data' => $queue,
             'message' => 'Queue skipped successfully',
         ]);
     }
