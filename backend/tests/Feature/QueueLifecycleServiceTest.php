@@ -389,4 +389,92 @@ class QueueLifecycleServiceTest extends TestCase
             'user_id' => $loket->id,
         ]);
     }
+
+    // ── complete() tests ──────────────────────────────────────────
+
+    public function test_complete_throws_for_foreign_counter(): void
+    {
+        $loket = $this->loketWithCounter();
+        $otherCounter = Counter::factory()->create();
+        $foreign = $this->queueFor($otherCounter, 'called');
+
+        try {
+            $this->service->complete($foreign, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('FORBIDDEN', $e->errorCode());
+            $this->assertSame(403, $e->statusCode());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for foreign counter');
+    }
+
+    public function test_complete_throws_for_invalid_status(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'waiting');
+
+        try {
+            $this->service->complete($queue, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('INVALID_STATUS', $e->errorCode());
+            $this->assertSame(400, $e->statusCode());
+            $this->assertSame('Queue is not in called or serving status', $e->getMessage());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for invalid status');
+    }
+
+    public function test_complete_transitions_called_queue_to_completed(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'called');
+        $queue->forceFill(['called_at' => now()->subMinutes(3)])->saveQuietly();
+        $queue->refresh();
+
+        $result = $this->service->complete($queue, $loket);
+
+        $this->assertSame('completed', $result->status);
+        $this->assertNotNull($result->completed_at);
+        $this->assertDatabaseHas('queues', [
+            'id' => $queue->id,
+            'status' => 'completed',
+        ]);
+        // QueueLog records completed action with a duration metadata entry.
+        $this->assertDatabaseHas('queue_logs', [
+            'queue_id' => $queue->id,
+            'action' => QueueLifecycleService::LOG_COMPLETED,
+            'performed_by' => $loket->name,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_COMPLETE,
+            'model_id' => $queue->id,
+            'user_id' => $loket->id,
+        ]);
+    }
+
+    public function test_complete_credits_explicit_audit_user_id(): void
+    {
+        $loket = $this->loketWithCounter();
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $queue = $this->queueFor($loket->counter, 'serving');
+
+        $this->service->complete(
+            queue: $queue,
+            actor: $loket,
+            auditUserId: $admin->id,
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_COMPLETE,
+            'model_id' => $queue->id,
+            'user_id' => $admin->id,
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_COMPLETE,
+            'model_id' => $queue->id,
+            'user_id' => $loket->id,
+        ]);
+    }
 }

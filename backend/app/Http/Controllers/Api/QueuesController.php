@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\QueueCompleted;
 use App\Events\QueueCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreQueueRequest;
-use App\Models\AuditLog;
 use App\Models\Counter;
 use App\Models\Layanan;
 use App\Models\Queue;
@@ -221,67 +219,24 @@ class QueuesController extends Controller
 
     public function complete(Request $request, Queue $queue): JsonResponse
     {
+        $user = $request->user();
+        $auditUserId = $request->session()->get('impersonator_id') ?? $user->id;
+
         try {
-            $user = $request->user();
-
-            if (! $this->canOperateOnCounter($user, $queue->counter_id)) {
-                return response()->json([
-                    'message' => 'You are not authorized to complete this queue',
-                ], 403);
-            }
-
-            if (! $queue->isCalled() && ! $queue->isServing()) {
-                return response()->json([
-                    'message' => 'Queue is not in called or serving status',
-                ], 400);
-            }
-
-            $queue = DB::transaction(function () use ($queue, $request, $user) {
-                $queue = Queue::whereKey($queue->id)->lockForUpdate()->firstOrFail();
-
-                if (! $queue->isCalled() && ! $queue->isServing()) {
-                    return null;
-                }
-
-                $previousStatus = $queue->status;
-                $queue->complete();
-
-                QueueLog::create([
-                    'queue_id' => $queue->id,
-                    'action' => 'completed',
-                    'performed_by' => $user->name,
-                    'metadata' => ['duration_seconds' => $queue->called_at ? now()->diffInSeconds($queue->called_at) : null],
-                ]);
-
-                AuditLog::log(
-                    action: 'complete',
-                    model: 'Queue',
-                    modelId: $queue->id,
-                    changes: ['status' => ['from' => $previousStatus, 'to' => 'completed']],
-                    ipAddress: $request->ip(),
-                    userId: $user->id
-                );
-
-                return $queue->load('counter', 'layanan');
-            });
-
-            if (! $queue) {
-                return response()->json([
-                    'message' => 'Queue is not in called or serving status',
-                ], 400);
-            }
-
-            try {
-                broadcast(new QueueCompleted($queue));
-            } catch (\Throwable $e) {
-                Log::warning('Broadcast failed: '.$e->getMessage());
-            }
-
+            $queue = $this->lifecycle->complete(
+                queue: $queue,
+                actor: $user,
+                auditUserId: (int) $auditUserId,
+                ipAddress: $request->ip(),
+            );
+        } catch (QueueLifecycleException $e) {
             return response()->json([
-                'data' => $queue,
-                'message' => 'Queue completed successfully',
-            ]);
+                'code' => $e->errorCode(),
+                'message' => $e->getMessage(),
+            ], $e->statusCode());
         } catch (\Throwable $e) {
+            // Preserve the original catch-all: unexpected failures (DB, lock,
+            // broadcast wiring) surface as a 500 rather than leaking a stack trace.
             Log::error('Complete queue failed', [
                 'queue_id' => $queue->id ?? null,
                 'error' => $e->getMessage(),
@@ -292,6 +247,11 @@ class QueuesController extends Controller
                 'message' => 'Failed to complete queue: '.$e->getMessage(),
             ], 500);
         }
+
+        return response()->json([
+            'data' => $queue,
+            'message' => 'Queue completed successfully',
+        ]);
     }
 
     public function skip(Request $request, Queue $queue): JsonResponse

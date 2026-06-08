@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\QueueCalled;
+use App\Events\QueueCompleted;
 use App\Events\QueueSkipped;
 use App\Models\AuditLog;
 use App\Models\Counter;
@@ -33,6 +34,8 @@ class QueueLifecycleService
 
     public const LOG_CALLED = 'called';
 
+    public const LOG_COMPLETED = 'completed';
+
     /** AuditLog action strings. */
     public const AUDIT_RECALL = 'recall';
 
@@ -41,6 +44,8 @@ class QueueLifecycleService
     public const AUDIT_CALL = 'call';
 
     public const AUDIT_CALL_NEXT = 'call_next';
+
+    public const AUDIT_COMPLETE = 'complete';
 
     /**
      * Recall a previously called/serving/skipped queue back to "called".
@@ -310,6 +315,74 @@ class QueueLifecycleService
 
         try {
             broadcast(new QueueCalled($queue));
+        } catch (\Throwable $e) {
+            Log::warning('Broadcast failed: '.$e->getMessage());
+        }
+
+        return $queue;
+    }
+
+    /**
+     * Complete a called or serving queue.
+     *
+     * Highest-risk lifecycle method. Wraps the pick-and-complete in a
+     * `DB::transaction` + `lockForUpdate()` so the status check is not
+     * raced by a concurrent operator. Computes `duration_seconds` from
+     * `called_at` for the QueueLog metadata. Returns the queue with
+     * `counter` and `layanan` relations loaded (the richest payload of
+     * any lifecycle method — see the announcement/display frontends).
+     *
+     * @throws QueueLifecycleException On auth failure or invalid status.
+     */
+    public function complete(
+        Queue $queue,
+        User $actor,
+        ?int $auditUserId = null,
+        ?string $ipAddress = null,
+    ): Queue {
+        if (! $this->canOperateOnCounter($actor, $queue->counter_id)) {
+            throw QueueLifecycleException::forbidden('You are not authorized to complete this queue');
+        }
+
+        if (! $queue->isCalled() && ! $queue->isServing()) {
+            throw QueueLifecycleException::invalidStatus('Queue is not in called or serving status');
+        }
+
+        $queue = DB::transaction(function () use ($queue, $actor, $auditUserId, $ipAddress) {
+            $queue = Queue::whereKey($queue->id)->lockForUpdate()->firstOrFail();
+
+            if (! $queue->isCalled() && ! $queue->isServing()) {
+                return null;
+            }
+
+            $previousStatus = $queue->status;
+            $queue->complete();
+
+            QueueLog::create([
+                'queue_id' => $queue->id,
+                'action' => self::LOG_COMPLETED,
+                'performed_by' => $actor->name,
+                'metadata' => ['duration_seconds' => $queue->called_at ? now()->diffInSeconds($queue->called_at) : null],
+            ]);
+
+            AuditLog::log(
+                action: self::AUDIT_COMPLETE,
+                model: 'Queue',
+                modelId: $queue->id,
+                changes: ['status' => ['from' => $previousStatus, 'to' => 'completed']],
+                ipAddress: $ipAddress,
+                userId: $auditUserId ?? $actor->id,
+            );
+
+            return $queue->load('counter', 'layanan');
+        });
+
+        if (! $queue) {
+            throw QueueLifecycleException::invalidStatus('Queue is not in called or serving status');
+        }
+
+        try {
+            broadcast(new QueueCompleted($queue));
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: '.$e->getMessage());
         }
