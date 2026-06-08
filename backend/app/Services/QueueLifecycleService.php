@@ -29,10 +29,14 @@ class QueueLifecycleService
 
     public const LOG_SKIPPED = 'skipped';
 
+    public const LOG_CALLED = 'called';
+
     /** AuditLog action strings. */
     public const AUDIT_RECALL = 'recall';
 
     public const AUDIT_SKIP = 'skip';
+
+    public const AUDIT_CALL = 'call';
 
     /**
      * Recall a previously called/serving/skipped queue back to "called".
@@ -147,6 +151,76 @@ class QueueLifecycleService
 
         try {
             broadcast(new QueueSkipped($queue));
+        } catch (\Throwable $e) {
+            Log::warning('Broadcast failed: '.$e->getMessage());
+        }
+
+        return $queue->load('counter');
+    }
+
+    /**
+     * Call a waiting queue.
+     *
+     * Authorization is intentionally narrower than `canOperateOnCounter()`:
+     * admin/super do NOT get an early pass here (per the original controller
+     * logic), but loket users may call any queue whose counter they own or
+     * are assigned to. A non-loket non-admin non-super caller is rejected.
+     *
+     * @param  Queue  $queue  The queue to call.
+     * @param  User  $actor  The acting user.
+     * @param  int|null  $counterIdOverride  Counter id from the request body,
+     *                                       used when the actor has no fixed
+     *                                       counter_id (admin/super).
+     * @param  int|null  $auditUserId  Real user id to credit in the audit log.
+     * @param  string|null  $ipAddress  Request IP for the audit log.
+     *
+     * @throws QueueLifecycleException On auth failure, old-day queue, or invalid status.
+     */
+    public function call(
+        Queue $queue,
+        User $actor,
+        ?int $counterIdOverride = null,
+        ?int $auditUserId = null,
+        ?string $ipAddress = null,
+    ): Queue {
+        if ($actor->isLoket() && $queue->counter_id !== $actor->counter_id) {
+            if (! $actor->assignedCounters()->where('counter_id', $queue->counter_id)->exists()) {
+                throw QueueLifecycleException::forbidden('You are not authorized to call this queue');
+            }
+        } elseif (! $actor->isLoket() && ! $actor->isAdmin() && ! $actor->isSuper()) {
+            throw QueueLifecycleException::forbidden('You are not authorized to call this queue');
+        }
+
+        if (! $queue->isWaiting()) {
+            throw QueueLifecycleException::invalidStatus('Queue is not in waiting status');
+        }
+
+        if (! $queue->created_at->isToday()) {
+            throw QueueLifecycleException::notToday();
+        }
+
+        $counterId = $actor->counter_id ?? $counterIdOverride;
+
+        $queue->call($actor->name, $counterId);
+
+        QueueLog::create([
+            'queue_id' => $queue->id,
+            'action' => self::LOG_CALLED,
+            'performed_by' => $actor->name,
+            'metadata' => ['counter_id' => $counterId],
+        ]);
+
+        AuditLog::log(
+            action: self::AUDIT_CALL,
+            model: 'Queue',
+            modelId: $queue->id,
+            changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
+            ipAddress: $ipAddress,
+            userId: $auditUserId ?? $actor->id,
+        );
+
+        try {
+            broadcast(new QueueCalled($queue));
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: '.$e->getMessage());
         }

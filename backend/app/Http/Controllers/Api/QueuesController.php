@@ -169,60 +169,25 @@ class QueuesController extends Controller
     public function call(Request $request, Queue $queue): JsonResponse
     {
         $user = $request->user();
+        $auditUserId = $request->session()->get('impersonator_id') ?? $user->id;
 
-        // Validate user can call for this counter
-        if ($user->isLoket() && $queue->counter_id !== $user->counter_id) {
-            // Check if user has this counter in assigned counters
-            if (! $user->assignedCounters()->where('counter_id', $queue->counter_id)->exists()) {
-                return response()->json([
-                    'message' => 'You are not authorized to call this queue',
-                ], 403);
-            }
-        }
-
-        if (! $queue->isWaiting()) {
-            return response()->json([
-                'message' => 'Queue is not in waiting status',
-            ], 400);
-        }
-
-        if (! $queue->created_at->isToday()) {
-            return response()->json([
-                'message' => 'Queue is not from today',
-            ], 422);
-        }
-
-        $counterId = $user->counter_id ?? $request->counter_id;
-
-        $queue->call($user->name, $counterId);
-
-        // Log the action
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => 'called',
-            'performed_by' => $user->name,
-            'metadata' => ['counter_id' => $counterId],
-        ]);
-
-        // Audit log
-        AuditLog::log(
-            action: 'call',
-            model: 'Queue',
-            modelId: $queue->id,
-            changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
-            ipAddress: $request->ip(),
-            userId: $user->id
-        );
-
-        // Broadcast event
         try {
-            broadcast(new QueueCalled($queue));
-        } catch (\Throwable $e) {
-            Log::warning('Broadcast failed: '.$e->getMessage());
+            $queue = $this->lifecycle->call(
+                queue: $queue,
+                actor: $user,
+                counterIdOverride: $request->integer('counter_id') ?: null,
+                auditUserId: (int) $auditUserId,
+                ipAddress: $request->ip(),
+            );
+        } catch (QueueLifecycleException $e) {
+            return response()->json([
+                'code' => $e->errorCode(),
+                'message' => $e->getMessage(),
+            ], $e->statusCode());
         }
 
         return response()->json([
-            'data' => $queue->load('counter'),
+            'data' => $queue,
             'message' => 'Queue called successfully',
         ]);
     }

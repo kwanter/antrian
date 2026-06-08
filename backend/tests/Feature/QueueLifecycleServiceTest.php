@@ -221,4 +221,97 @@ class QueueLifecycleServiceTest extends TestCase
             'user_id' => $loket->id,
         ]);
     }
+
+    // ── call() tests ──────────────────────────────────────────────
+
+    public function test_call_throws_for_foreign_counter_loket(): void
+    {
+        $loket = $this->loketWithCounter();
+        $otherCounter = Counter::factory()->create();
+        $foreign = $this->queueFor($otherCounter, 'waiting');
+
+        try {
+            $this->service->call($foreign, $loket);
+            $this->fail('Expected QueueLifecycleException for foreign counter');
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('FORBIDDEN', $e->errorCode());
+            $this->assertSame(403, $e->statusCode());
+        }
+    }
+
+    public function test_call_throws_for_old_day_queue(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'waiting');
+        $queue->forceFill(['created_at' => now()->subDay()])->saveQuietly();
+        $queue->refresh();
+
+        try {
+            $this->service->call($queue, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('QUEUE_NOT_TODAY', $e->errorCode());
+            $this->assertSame(422, $e->statusCode());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for old-day queue');
+    }
+
+    public function test_call_throws_for_non_waiting_status(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'called');
+
+        try {
+            $this->service->call($queue, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('INVALID_STATUS', $e->errorCode());
+            $this->assertSame(400, $e->statusCode());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for non-waiting status');
+    }
+
+    public function test_call_transitions_waiting_to_called(): void
+    {
+        $loket = $this->loketWithCounter();
+        $queue = $this->queueFor($loket->counter, 'waiting');
+
+        $result = $this->service->call($queue, $loket);
+
+        $this->assertSame('called', $result->status);
+        $this->assertDatabaseHas('queues', [
+            'id' => $queue->id,
+            'status' => 'called',
+        ]);
+        $this->assertDatabaseHas('queue_logs', [
+            'queue_id' => $queue->id,
+            'action' => QueueLifecycleService::LOG_CALLED,
+            'performed_by' => $loket->name,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_CALL,
+            'model_id' => $queue->id,
+            'user_id' => $loket->id,
+        ]);
+    }
+
+    public function test_call_uses_counter_id_override(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $counter = Counter::factory()->create();
+        $overrideCounter = Counter::factory()->create();
+        $queue = $this->queueFor($counter, 'waiting');
+
+        $result = $this->service->call($queue, $admin, counterIdOverride: $overrideCounter->id);
+
+        // Admin has no fixed counter_id, so the override is used for the call.
+        $this->assertSame('called', $result->status);
+        $this->assertDatabaseHas('queues', [
+            'id' => $queue->id,
+            'status' => 'called',
+            'counter_id' => $overrideCounter->id,
+        ]);
+    }
 }
