@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Events\QueueCalled;
 use App\Events\QueueSkipped;
 use App\Models\AuditLog;
+use App\Models\Counter;
 use App\Models\Queue;
 use App\Models\QueueLog;
 use App\Models\User;
 use App\Services\Exceptions\QueueLifecycleException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -37,6 +39,8 @@ class QueueLifecycleService
     public const AUDIT_SKIP = 'skip';
 
     public const AUDIT_CALL = 'call';
+
+    public const AUDIT_CALL_NEXT = 'call_next';
 
     /**
      * Recall a previously called/serving/skipped queue back to "called".
@@ -226,6 +230,91 @@ class QueueLifecycleService
         }
 
         return $queue->load('counter');
+    }
+
+    /**
+     * Call the next waiting queue for a counter.
+     *
+     * Picks the oldest waiting queue for today, scoped to the counter's
+     * layanan (or, if the counter has no layanan, to queues bound to this
+     * counter or with no counter assigned). Wraps the pick-and-call in a
+     * DB transaction with `lockForUpdate()` to prevent two operators
+     * calling the same queue at the same time.
+     *
+     * @param  int  $counterId  The counter to call next for.
+     * @param  User  $actor  The acting user.
+     * @param  int|null  $auditUserId  Real user id to credit in the audit log.
+     * @param  string|null  $ipAddress  Request IP for the audit log.
+     *
+     * @throws QueueLifecycleException On auth failure, missing counter, or empty queue.
+     */
+    public function callNext(
+        int $counterId,
+        User $actor,
+        ?int $auditUserId = null,
+        ?string $ipAddress = null,
+    ): Queue {
+        if (! $this->canOperateOnCounter($actor, $counterId)) {
+            throw QueueLifecycleException::forbidden('You are not authorized to call queues for this counter');
+        }
+
+        $counter = Counter::with('layanan')->find($counterId);
+
+        if (! $counter) {
+            throw QueueLifecycleException::notFound('Counter not found');
+        }
+
+        $query = Queue::where('status', 'waiting')
+            ->whereDate('created_at', today());
+
+        if ($counter->layanan_id) {
+            $query->where('layanan_id', $counter->layanan_id);
+        } else {
+            $query->where(fn ($q) => $q
+                ->where('counter_id', $counterId)
+                ->orWhereNull('counter_id')
+            );
+        }
+
+        $queue = DB::transaction(function () use ($query, $actor, $counterId, $auditUserId, $ipAddress) {
+            $queue = $query->lockForUpdate()->orderBy('created_at')->first();
+
+            if (! $queue) {
+                return null;
+            }
+
+            $queue->call($actor->name, $counterId);
+
+            QueueLog::create([
+                'queue_id' => $queue->id,
+                'action' => self::LOG_CALLED,
+                'performed_by' => $actor->name,
+                'metadata' => ['counter_id' => $counterId],
+            ]);
+
+            AuditLog::log(
+                action: self::AUDIT_CALL_NEXT,
+                model: 'Queue',
+                modelId: $queue->id,
+                changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
+                ipAddress: $ipAddress,
+                userId: $auditUserId ?? $actor->id,
+            );
+
+            return $queue->load('counter', 'layanan');
+        });
+
+        if (! $queue) {
+            throw QueueLifecycleException::notFound('No waiting queue found');
+        }
+
+        try {
+            broadcast(new QueueCalled($queue));
+        } catch (\Throwable $e) {
+            Log::warning('Broadcast failed: '.$e->getMessage());
+        }
+
+        return $queue;
     }
 
     /**

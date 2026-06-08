@@ -36,6 +36,11 @@ class QueueLifecycleException extends RuntimeException
         return new self('INVALID_STATUS', $message, 400);
     }
 
+    public static function notFound(string $message): self
+    {
+        return new self('NOT_FOUND', $message, 404);
+    }
+
     public function statusCode(): int
     {
         return $this->statusCode;

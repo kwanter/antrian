@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\QueueCalled;
 use App\Events\QueueCompleted;
 use App\Events\QueueCreated;
 use App\Http\Controllers\Controller;
@@ -326,74 +325,20 @@ class QueuesController extends Controller
     public function callNext(Request $request, $counterId): JsonResponse
     {
         $user = $request->user();
-        $counterId = (int) $counterId;
-
-        if (! $this->canOperateOnCounter($user, $counterId)) {
-            return response()->json([
-                'message' => 'You are not authorized to call queues for this counter',
-            ], 403);
-        }
-
-        $counter = Counter::with('layanan')->find($counterId);
-
-        if (! $counter) {
-            return response()->json([
-                'message' => 'Counter not found',
-            ], 404);
-        }
-
-        // Build query: only waiting queues
-        $query = Queue::where('status', 'waiting')
-            ->whereDate('created_at', today());
-
-        if ($counter->layanan_id) {
-            $query->where('layanan_id', $counter->layanan_id);
-        } else {
-            // Counter has no layanan → call queues for this counter or unassigned
-            $query->where(fn ($q) => $q
-                ->where('counter_id', $counterId)
-                ->orWhereNull('counter_id')
-            );
-        }
-
-        $queue = DB::transaction(function () use ($query, $user, $counterId, $request) {
-            $queue = $query->lockForUpdate()->orderBy('created_at')->first();
-
-            if (! $queue) {
-                return null;
-            }
-
-            $queue->call($user->name, $counterId);
-
-            QueueLog::create([
-                'queue_id' => $queue->id,
-                'action' => 'called',
-                'performed_by' => $user->name,
-                'metadata' => ['counter_id' => $counterId],
-            ]);
-
-            AuditLog::log(
-                action: 'call_next',
-                model: 'Queue',
-                modelId: $queue->id,
-                changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
-                ipAddress: $request->ip(),
-                userId: $user->id
-            );
-
-            return $queue->load('counter', 'layanan');
-        });
-
-        if (! $queue) {
-            return response()->json([
-                'message' => 'No waiting queue found',
-            ], 404);
-        }
+        $auditUserId = $request->session()->get('impersonator_id') ?? $user->id;
 
         try {
-            broadcast(new QueueCalled($queue));
-        } catch (\Throwable $e) {
-            Log::warning('Broadcast failed: '.$e->getMessage());
+            $queue = $this->lifecycle->callNext(
+                counterId: (int) $counterId,
+                actor: $user,
+                auditUserId: (int) $auditUserId,
+                ipAddress: $request->ip(),
+            );
+        } catch (QueueLifecycleException $e) {
+            return response()->json([
+                'code' => $e->errorCode(),
+                'message' => $e->getMessage(),
+            ], $e->statusCode());
         }
 
         return response()->json([

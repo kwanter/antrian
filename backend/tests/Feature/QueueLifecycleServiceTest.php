@@ -314,4 +314,79 @@ class QueueLifecycleServiceTest extends TestCase
             'counter_id' => $overrideCounter->id,
         ]);
     }
+
+    // ── callNext() tests ──────────────────────────────────────────
+
+    public function test_call_next_throws_for_foreign_counter(): void
+    {
+        $loket = $this->loketWithCounter();
+        $otherCounter = Counter::factory()->create();
+
+        try {
+            $this->service->callNext($otherCounter->id, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('FORBIDDEN', $e->errorCode());
+            $this->assertSame(403, $e->statusCode());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for foreign counter');
+    }
+
+    public function test_call_next_throws_for_missing_counter(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        try {
+            $this->service->callNext(999_999, $admin);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('NOT_FOUND', $e->errorCode());
+            $this->assertSame(404, $e->statusCode());
+            $this->assertSame('Counter not found', $e->getMessage());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for missing counter');
+    }
+
+    public function test_call_next_throws_when_no_waiting_queue(): void
+    {
+        $loket = $this->loketWithCounter();
+
+        try {
+            $this->service->callNext($loket->counter_id, $loket);
+        } catch (QueueLifecycleException $e) {
+            $this->assertSame('NOT_FOUND', $e->errorCode());
+            $this->assertSame(404, $e->statusCode());
+            $this->assertSame('No waiting queue found', $e->getMessage());
+
+            return;
+        }
+        $this->fail('Expected QueueLifecycleException for empty queue');
+    }
+
+    public function test_call_next_picks_oldest_waiting_queue(): void
+    {
+        $loket = $this->loketWithCounter();
+        $old = $this->queueFor($loket->counter, 'waiting');
+        $old->forceFill(['created_at' => now()->subMinutes(10)])->saveQuietly();
+        $old->refresh();
+        $new = $this->queueFor($loket->counter, 'waiting');
+
+        $result = $this->service->callNext($loket->counter_id, $loket);
+
+        $this->assertSame($old->id, $result->id);
+        $this->assertDatabaseHas('queues', ['id' => $old->id, 'status' => 'called']);
+        $this->assertDatabaseHas('queues', ['id' => $new->id, 'status' => 'waiting']);
+        $this->assertDatabaseHas('queue_logs', [
+            'queue_id' => $old->id,
+            'action' => QueueLifecycleService::LOG_CALLED,
+            'performed_by' => $loket->name,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => QueueLifecycleService::AUDIT_CALL_NEXT,
+            'model_id' => $old->id,
+            'user_id' => $loket->id,
+        ]);
+    }
 }
