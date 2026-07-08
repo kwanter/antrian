@@ -34,7 +34,7 @@ class VideosController extends Controller
     {
         $request->validate([
             'display_id' => 'required|exists:displays,id',
-            'video' => 'required|file|mimes:mp4,webm,avi,mov,mkv|max:102400',
+            'video' => 'required|file|mimes:mp4,webm,avi,mov,mkv|max:1048576',
             'title' => 'required|string|max:255',
             'duration' => 'nullable|integer',
             'volume_level' => 'nullable|numeric|min:0|max:1',
@@ -84,7 +84,7 @@ class VideosController extends Controller
         $oldData = $video->toArray();
 
         $request->validate([
-            'video' => 'sometimes|file|mimes:mp4,webm,avi,mov,mkv|max:102400',
+            'video' => 'sometimes|file|mimes:mp4,webm,avi,mov,mkv|max:1048576',
             'file_url' => 'sometimes|url',
             'title' => 'sometimes|string|max:255',
             'duration' => 'nullable|integer',

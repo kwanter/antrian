@@ -31,7 +31,12 @@ function isQueueQueryParams(value: unknown): value is QueueQueryParams | undefin
 }
 
 function todayIsoDate() {
-  return new Date().toISOString().split("T")[0];
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Makassar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function queueMatchesParams(queue: Queue, params: QueueQueryParams | undefined) {
@@ -190,6 +195,20 @@ export function useSkipQueue() {
 }
 
 export function useCallSingleQueue() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (queueId: number) => {
+      const { data } = await api.post<ApiResponse<Queue>>(
+        `/queues/${queueId}/recall`,
+      );
+      return data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUEUES_KEY }),
+  });
+}
+
+export function useRecallSkippedQueue() {
   const qc = useQueryClient();
 
   return useMutation({

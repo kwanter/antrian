@@ -22,7 +22,9 @@ class LayananRequest extends FormRequest
         ];
 
         if ($this->isMethod('put') || $this->isMethod('patch')) {
-            $rules['code'] = 'required|string|max:20|unique:layanans,code,' . $this->route('layanan');
+            $layananId = $this->route('layanan');
+            $id = $layananId instanceof \App\Models\Layanan ? $layananId->id : $layananId;
+            $rules['code'] = 'required|string|max:20|unique:layanans,code,' . $id;
         }
 
         return $rules;

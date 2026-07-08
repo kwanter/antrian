@@ -43,9 +43,15 @@ class Queue extends Model
         return $this->belongsTo(Layanan::class);
     }
 
-    public function calledByUser(): BelongsTo
+    /**
+     * The `called_by` column stores the operator's display name as a string
+     * (see Queue::call()). It is NOT a foreign key — do not treat it as one
+     * or assume a numeric id. The matching QueueLog entry is the audit
+     * source of truth for which User actually performed the call.
+     */
+    public function getCalledByNameAttribute(): ?string
     {
-        return $this->belongsTo(User::class, 'called_by');
+        return $this->called_by;
     }
 
     public function logs(): HasMany

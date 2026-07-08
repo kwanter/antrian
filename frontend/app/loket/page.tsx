@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { useQueueChannel, useCounterChannel } from "@/hooks/use-websocket";
 import { useQueues } from "@/hooks/use-queue";
-import { useCallNext, useCompleteQueue, useSkipQueue, useCallSingleQueue } from "@/hooks/use-queue";
+import { useCallNext, useCompleteQueue, useSkipQueue, useCallSingleQueue, useRecallSkippedQueue } from "@/hooks/use-queue";
 import { QueueCard } from "@/components/loket/queue-card";
 import { CallButton } from "@/components/loket/call-button";
 import { ServiceHistory } from "@/components/loket/service-history";
+import { SkippedQueueList } from "@/components/loket/skipped-queue-list";
 import { Printer } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,16 +39,14 @@ export default function LoketPage() {
   const completedQueues = queues?.data.filter((q) => q.status === "completed") ?? [];
   const skippedQueues = queues?.data.filter((q) => q.status === "skipped") ?? [];
 
-  // Merge completed and skipped queues for service history
-  const historyQueues = [
-    ...completedQueues,
-    ...skippedQueues,
-  ];
+  // Merge completed queues for service history (skip skipped — they have their own section)
+  const historyQueues = completedQueues;
 
   const callNextMutation = useCallNext();
   const completeMutation = useCompleteQueue();
   const skipMutation = useSkipQueue();
   const callSingleMutation = useCallSingleQueue();
+  const recallSkippedMutation = useRecallSkippedQueue();
 
   const currentQueue = calledQueues.find((q) => {
     if (layananId) return q.layanan_id === layananId;
@@ -123,6 +122,17 @@ export default function LoketPage() {
     });
   };
 
+  const handleRecallSkipped = (queueId: number) => {
+    recallSkippedMutation.mutate(queueId, {
+      onSuccess: (queue) => {
+        toast.success(`Memanggil antrian ${queue.ticket_number}`);
+      },
+      onError: () => {
+        toast.error("Gagal memanggil antrian");
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -181,6 +191,13 @@ export default function LoketPage() {
           {waitingCount} antrian lagi dalam antrean
         </p>
       )}
+
+      {/* Skipped queue list — inline actionable section */}
+      <SkippedQueueList
+        queues={skippedQueues}
+        onRecall={handleRecallSkipped}
+        isRecalling={recallSkippedMutation.isPending}
+      />
 
       {/* Service history */}
       <div>

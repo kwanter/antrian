@@ -28,11 +28,12 @@ api.interceptors.response.use(
         window.location.assign("/loket/login");
       } else if (
         path !== "/" &&
+        !path.startsWith("/login") &&
         !path.startsWith("/loket/login") &&
         !path.startsWith("/kiosk") &&
         !path.startsWith("/display")
       ) {
-        window.location.assign("/");
+        window.location.assign("/login");
       }
     }
     return Promise.reject(error);
@@ -100,7 +101,25 @@ export async function getLayananQueues(
   return data;
 }
 
-// ── Videos ──
+// ── Impersonation ──
+
+export interface ImpersonationResponse {
+  data: {
+    user: import("./types").User;
+    impersonator?: Pick<import("./types").User, "id" | "name" | "email" | "role">;
+  };
+  message?: string;
+}
+
+export async function impersonateUser(userId: number): Promise<ImpersonationResponse> {
+  const { data } = await api.post(`/auth/impersonate/${userId}`);
+  return data;
+}
+
+export async function stopImpersonation(): Promise<ImpersonationResponse> {
+  const { data } = await api.post("/auth/stop-impersonation");
+  return data;
+}
 
 export interface VideoPayload {
   title?: string;

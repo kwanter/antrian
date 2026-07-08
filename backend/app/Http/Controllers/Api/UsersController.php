@@ -86,11 +86,9 @@ class UsersController extends Controller
     public function update(Request $request, User $user): JsonResponse
     {
         $oldData = $user->toArray();
-
         $rules = [
             'name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'role' => 'sometimes|in:admin,loket,super',
             'is_active' => 'sometimes|boolean',
             'counter_id' => 'nullable|exists:counters,id',
         ];
@@ -100,10 +98,21 @@ class UsersController extends Controller
             $rules['password'] = 'string|min:6';
         }
 
+        // Role changes are admin/super only by route middleware; keep explicit
+        // validation here and whitelist fields below to prevent mass assignment.
+        $roleChangeRequested = $request->has('role');
+        if ($roleChangeRequested) {
+            $rules['role'] = 'in:admin,loket,super';
+        }
+
         $request->validate($rules);
 
-        $updateData = $request->only(['name', 'email', 'role', 'is_active', 'counter_id']);
-        
+        // Whitelist safe fields; prevents mass-assignment of unknown attributes.
+        $updateData = $request->only(['name', 'email', 'is_active', 'counter_id']);
+        if ($roleChangeRequested) {
+            $updateData['role'] = $request->role;
+        }
+
         if ($request->has('password')) {
             $updateData['password'] = Hash::make($request->password);
         }

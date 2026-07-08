@@ -1,7 +1,7 @@
 # PRD — Project Requirements Document
 
 ## 1. Overview
-Sistem Antrian Digital adalah platform terintegrasi yang dirancang untuk mengelola, memantau, dan mengoptimalkan alur pelayanan di instansi atau loket layanan masyarakat. Sistem ini menghubungkan perangkat kiosk (penyerah tiket), aplikasi petugas loket, layar display ruang tunggu, dan dashboard admin ke dalam satu ekosistem yang terpusat di backend. Proyek ini dibangun menggunakan **Laravel 11** sebagai backend dan **React/Next.js** sebagai frontend, dengan fokus pada real-time sync, konfigurasi dinamis perangkat keras (printer thermal & display), serta manajemen akses berbasis peran yang ketat.
+Sistem Antrian Digital adalah platform terintegrasi yang dirancang untuk mengelola, memantau, dan mengoptimalkan alur pelayanan di instansi atau loket layanan masyarakat. Sistem ini menghubungkan perangkat kiosk (penyerah tiket), aplikasi petugas loket, layar display ruang tunggu, dan dashboard admin ke dalam satu ekosistem yang terpusat di backend. Proyek ini dibangun menggunakan **Laravel 13** sebagai backend dan **Next.js 16 (React 19)** sebagai frontend, dengan fokus pada real-time sync, konfigurasi dinamis perangkat keras (printer thermal & display), serta manajemen akses berbasis peran yang ketat.
 
 ## 2. Tujuan & Lingkup Proyek
 ### 2.1 Tujuan
@@ -16,7 +16,7 @@ Sistem Antrian Digital adalah platform terintegrasi yang dirancang untuk mengelo
 - Aplikasi Kiosk: Pemilihan layanan, generate nomor, pencetakan tiket via USB bridge.
 - Aplikasi Loket: Login petugas, panggilan antrian, penyelesaian layanan, histori.
 - Aplikasi Display: Tampilan nomor antrian aktif & pemutar video dengan kontrol volume dinamis.
-- Backend API: Laravel 11, manajemen antrian, WebSocket/SSE untuk sinkronisasi, logging terpusat.
+- Backend API: Laravel 13, manajemen antrian, WebSocket (Laravel Reverb) untuk sinkronisasi, logging terpusat.
 
 ### 2.3 Di Luar Lingkup (Out-of-Scope)
 - Aplikasi mobile khusus pengunjung (bisa dikembangkan di fase lanjutan).
@@ -67,7 +67,7 @@ Sistem Antrian Digital adalah platform terintegrasi yang dirancang untuk mengelo
 - Mode idle/hemat layar saat tidak ada antrian aktif.
 
 ### 4.5 Backend & API
-- Laravel 11 (PHP 8.2+) dengan RESTful API.
+- Laravel 13 (PHP 8.3+) dengan RESTful API.
 - WebSocket (Laravel Reverb/Pusher) untuk: update antrian, perubahan display, status printer bridge, notifikasi loket.
 - Queue Worker: menangani proses cetak, logging, sinkronisasi data yang tertunda, dan pencatatan audit secara asinkron untuk menjaga performa API.
 
@@ -82,12 +82,12 @@ Sistem Antrian Digital adalah platform terintegrasi yang dirancang untuk mengelo
 ## 6. Arsitektur & Tech Stack
 | Komponen | Teknologi | Catatan Implementasi |
 |----------|-----------|----------------------|
-| Frontend | Next.js (React 18+) + TypeScript | SSR/CSR hybrid, Tailwind CSS, React Query |
-| Backend | Laravel 11 + MySQL/PostgreSQL | Sanctum/JWT Auth, Eloquent ORM, Laravel Echo |
-| Real-time | WebSocket (Laravel Reverb / Socket.io) | Sinkronisasi antrian <1 detik |
+| Frontend | Next.js 16 (React 19) + TypeScript | SSR/CSR hybrid, Tailwind CSS, TanStack Query |
+| Backend | Laravel 13 + SQLite (dev) / MySQL 8 atau PostgreSQL 15 (prod) | Sanctum (session/cookie) Auth, Eloquent ORM, Laravel Echo |
+| Real-time | WebSocket (Laravel Reverb) | Sinkronisasi antrian <1 detik |
 | Hardware Bridge | Web Serial API / ESC-POS JS | Jalan di browser kiosk (Chrome/Edge) atau lightweight Electron wrapper |
-| Database | MySQL 8 / PostgreSQL 15 | Indexing pada kolom antrian & status, struktur audit teroptimasi |
-| Infrastructure | Docker, Nginx, Redis (Cache), SSL | Siap horizontal scaling |
+| Database | SQLite (dev) / MySQL 8 atau PostgreSQL 15 (prod) | Indexing pada kolom antrian & status, struktur audit teroptimasi |
+| Infrastructure | Apache/nginx + PHP-FPM, SSL | Deploy VPS (lihat DEPLOY.md) |
 
 ## 7. Database Skema (High-Level)
 ```sql
@@ -129,7 +129,7 @@ audit_logs: id, user_id, action, model, model_id, changes_json, ip_address, crea
 
 ### 9.2 Kontrol Volume Video
 - Menggunakan HTML5 `<video>` + Web Audio API untuk normalisasi gain.
-- Level volume (`0.0` - `1.0`) ditarik dari endpoint `/api/displays/{id}/video-config` dan diupdate real-time via WebSocket channel `display-volume-updates`.
+- Level volume (`0.0` - `1.0`) ditarik dari endpoint `/api/v1/displays/{id}/sync` dan diupdate real-time via WebSocket channel `display-volume-updates`.
 - Audio panggilan tetap terpisah (tidak terpengaruh volume video).
 
 ### 9.3 Manajemen User Loket
@@ -138,13 +138,13 @@ audit_logs: id, user_id, action, model, model_id, changes_json, ip_address, crea
 - GantiShift/Reassign dilakukan oleh admin tanpa logout paksa (session refresh). Perubahan ini otomatis tercatat di audit trail.
 
 ### 9.4 Real-time & Fallback
-- WebSocket channel: `queue-updates`, `loket-notif`, `display-sync`.
-- Mode Offline: Jika koneksi putus, kiosk & loket cache operasi ke IndexedDB/localStorage, sync otomatis saat online.
+- WebSocket channel: `queue-updates`, `display-sync`, `display-volume-updates`, `display.{displayId}`.
+- Mode Offline (direncanakan, belum diimplementasikan): Jika koneksi putus, kiosk & loket diharapkan cache operasi ke IndexedDB/localStorage, sync otomatis saat online.
 - Printer tidak bergantung pada koneksi internet untuk cetak jika data tiket sudah tersedia di bridge.
 - Pencatatan audit trail menggunakan queue worker untuk mengurangi beban request langsung pada saat form submit.
 
 ## 10. Kebutuhan Non-Fungsional
-- **Keamanan**: JWT authentication, CSRF protection, parameterized queries, input sanitization, dan perlindungan terhadap manipulasi langsung endpoint API.
+- **Keamanan**: Sanctum (session/cookie) authentication, CSRF protection, parameterized queries, input sanitization, dan perlindungan terhadap manipulasi langsung endpoint API.
 - **Kinerja**: API latency <200ms, concurrent load 500+ antrian, display 60fps, WebSocket heartbeat 5s.
 - **Keandalan**: Graceful degradation pada printer disconnect, auto-reconnect WebSocket, graceful shutdown queue worker, dan mekanisme sinkronisasi audit yang tidak mengganggu UX admin.
 - **Kompatibilitas**: Chrome/Edge terbaru (Web Serial API), Windows 10/11 & Linux kiosk, Smart TV/Android Box via browser atau lightweight app untuk display.
@@ -154,7 +154,7 @@ audit_logs: id, user_id, action, model, model_id, changes_json, ip_address, crea
 ## 11. Milestone & Roadmap
 | Fase | Durasi | Deliverables |
 |------|--------|--------------|
-| 1. Setup & Core API | Minggu 1-2 | Laravel 11 setup, DB schema, Auth/Sanctum, Antrian FIFO API, WebSocket, Audit Trail Middleware/Queue |
+| 1. Setup & Core API | Minggu 1-2 | Laravel 13 setup, DB schema, Auth/Sanctum, Antrian FIFO API, WebSocket, Audit Trail Middleware/Queue |
 | 2. Admin & Loket App | Minggu 3-4 | Dashboard admin, CRUD user/counter, assign logic, UI loket, logging, halaman audit history |
 | 3. Kiosk & Printer Bridge | Minggu 5-6 | UI kiosk, Web Serial/ESC-POS integration, template engine tiket, error handling, retry mechanism |
 | 4. Display & Media Sync | Minggu 7-8 | UI display, video player, volume control via WebSocket, real-time overlay, idle mode |

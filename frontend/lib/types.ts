@@ -93,16 +93,31 @@ export interface Video {
 
 // ── Printer Profile ──
 export type PaperSize = "58mm" | "80mm";
+export type PrinterConnectionType = "web_serial" | "windows_bridge";
+export type PrinterCutMode = "none" | "partial" | "full";
+export type PrinterCharset = "utf-8" | "cp437" | "cp850";
+
+export interface PrinterTemplate {
+  header_text?: string;
+  footer_text?: string;
+  paper_size?: PaperSize;
+  copy_count?: number;
+  printer_model?: string;
+  connection_type?: PrinterConnectionType;
+  baud_rate?: number;
+  charset?: PrinterCharset;
+  cut_mode?: PrinterCutMode;
+}
 
 export interface PrinterProfile {
   id: number;
   name: string;
   paper_size: PaperSize;
   copy_count: number;
-  header_text: string;
-  footer_text: string;
+  header_text: string | null;
+  footer_text: string | null;
   logo_url: string | null;
-  template: Record<string, unknown>;
+  template: PrinterTemplate | Record<string, unknown>;
   created_at?: string;
 }
 

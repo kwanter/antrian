@@ -92,3 +92,120 @@ export class EscPosBuilder {
     return new Uint8Array(this.buf);
   }
 }
+
+/**
+ * Build ESC/POS bytes for a queue ticket.
+ */
+export interface BuildTicketInput {
+  ticketNumber: string;
+  serviceType: string;
+  createdAt: string;
+  headerText?: string;
+  footerText?: string;
+  paperSize?: "58mm" | "80mm";
+  copyCount?: number;
+  cutMode?: "none" | "partial" | "full";
+  isTest?: boolean;
+}
+
+export function buildQueueTicketBytes(input: BuildTicketInput): Uint8Array {
+  const {
+    ticketNumber,
+    serviceType,
+    createdAt,
+    headerText,
+    footerText,
+    copyCount = 1,
+    cutMode = "partial",
+    isTest = false,
+  } = input;
+
+  const copies: Uint8Array[] = [];
+
+  for (let c = 0; c < copyCount; c++) {
+    const builder = new EscPosBuilder();
+    builder.init().align(1); // center
+
+    // Header
+    if (headerText) {
+      builder.bold(true).line(headerText).bold(false);
+    }
+    builder.separator("=");
+
+    // Label
+    builder.feed(1).bold(true).line("NOMOR ANTRIAN").bold(false).feed(1);
+
+    // Big bold ticket number
+    builder.textSize(1).bold(true).line(ticketNumber).bold(false).textSize(0);
+
+    builder.feed(1).separator("-");
+
+    // Details
+    builder.align(0).bold(false);
+    builder.line(`Layanan: ${serviceType}`);
+    builder.line(`Tanggal: ${createdAt}`);
+
+    if (isTest) {
+      builder.line("");
+      builder.align(1);
+      builder.line("*** UJI COBA CETAK ***");
+      builder.line("--- TEST PRINT ---");
+    }
+
+    // Footer
+    builder.feed(1).separator("-").align(1);
+    if (footerText) {
+      builder.line(footerText);
+    }
+    builder.feed(2);
+
+    // Cut
+    if (cutMode === "full") {
+      builder.cut();
+    } else if (cutMode === "partial") {
+      builder.cutPartial();
+    }
+
+    copies.push(builder.toBytes());
+  }
+
+  // Concatenate copies
+  const totalLen = copies.reduce((s, c) => s + c.length, 0);
+  const combined = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const copy of copies) {
+    combined.set(copy, offset);
+    offset += copy.length;
+  }
+  return combined;
+}
+
+/**
+ * Build ESC/POS bytes for a printer test page.
+ */
+export function buildPrinterTestTicket(profile?: {
+  header_text?: string;
+  footer_text?: string;
+  paper_size?: string;
+  copy_count?: number;
+  cut_mode?: string;
+}): Uint8Array {
+  return buildQueueTicketBytes({
+    ticketNumber: "TEST-001",
+    serviceType: "Uji Coba Printer",
+    createdAt: new Date().toLocaleDateString("id-ID", {
+      timeZone: "Asia/Makassar",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    headerText: profile?.header_text || undefined,
+    footerText: profile?.footer_text || undefined,
+    paperSize: (profile?.paper_size as "58mm" | "80mm") || "58mm",
+    copyCount: profile?.copy_count || 1,
+    cutMode: (profile?.cut_mode as "none" | "partial" | "full") || "partial",
+    isTest: true,
+  });
+}

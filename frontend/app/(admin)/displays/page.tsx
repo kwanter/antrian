@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { updateVideo, updateVideoWithFile } from "@/lib/api";
+import { resolveBackendUrl } from "@/lib/utils";
 import type { Display, Video } from "@/lib/types";
 import { toast } from "sonner";
 import { VideoUploadCard } from "@/components/admin/video-upload-card";
@@ -26,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Volume2, Video as VideoIcon } from "lucide-react";
+import { Pencil, Plus, Volume2, Video as VideoIcon } from "lucide-react";
 
 export default function DisplaysPage() {
   const queryClient = useQueryClient();
@@ -35,6 +36,10 @@ export default function DisplaysPage() {
   const [selectedDisplayId, setSelectedDisplayId] = useState<number | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [displayLocation, setDisplayLocation] = useState("");
+  const [editDisplayOpen, setEditDisplayOpen] = useState(false);
+  const [editingDisplay, setEditingDisplay] = useState<Display | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editDisplayLocation, setEditDisplayLocation] = useState("");
   const [videoTitle, setVideoTitle] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [announcerFiles, setAnnouncerFiles] = useState<Record<number, File | null>>({});
@@ -79,6 +84,27 @@ export default function DisplaysPage() {
     },
     onError: () => {
       toast.error("Gagal menghapus display");
+    },
+  });
+
+  const updateDisplay = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name: string; location: string } }) =>
+      api.put(`/displays/${id}`, data),
+    onSuccess: (response) => {
+      const updatedDisplay = response.data.data as Display;
+      queryClient.setQueryData<Display[]>(["displays"], (current) =>
+        current?.map((display) =>
+          display.id === updatedDisplay.id ? updatedDisplay : display
+        ) ?? []
+      );
+      toast.success("Display berhasil diperbarui");
+      setEditDisplayOpen(false);
+      setEditingDisplay(null);
+      setEditDisplayName("");
+      setEditDisplayLocation("");
+    },
+    onError: () => {
+      toast.error("Gagal memperbarui display");
     },
   });
 
@@ -262,6 +288,22 @@ export default function DisplaysPage() {
     createDisplay.mutate({ name: displayName, location: displayLocation });
   };
 
+  const openEditDisplayDialog = (display: Display) => {
+    setEditingDisplay(display);
+    setEditDisplayName(display.name);
+    setEditDisplayLocation(display.location);
+    setEditDisplayOpen(true);
+  };
+
+  const handleEditDisplay = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDisplay) return;
+    updateDisplay.mutate({
+      id: editingDisplay.id,
+      data: { name: editDisplayName, location: editDisplayLocation },
+    });
+  };
+
   const handleAddVideo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDisplayId || !videoFile) return;
@@ -296,22 +338,43 @@ export default function DisplaysPage() {
     updateAnnouncerMutation.mutate({ displayId: display.id, formData });
   };
 
-  const testAnnouncer = (display: Display) => {
+  const testAnnouncer = async (display: Display) => {
     const volume = (announcerVolumeDrafts[display.id] ?? Math.round((display.settings?.announcer_volume ?? 1) * 100)) / 100;
-    const soundUrl = display.settings?.announcer_sound_url;
+    const vol = Math.min(1, Math.max(0, volume));
 
+    // 1) Try backend dynamic TTS (edge-tts) using a recently called queue
+    try {
+      const list = await api.get("/queues", { params: { status: "called", per_page: 1 } });
+      const sampleQueue = list.data?.data?.[0];
+      if (sampleQueue?.id) {
+        const tts = await api.get(`/tts/queue/${sampleQueue.id}`);
+        const { audio_url } = tts.data ?? {};
+        if (audio_url) {
+          const audio = new Audio(resolveBackendUrl(audio_url));
+          audio.volume = vol;
+          await audio.play();
+          return;
+        }
+      }
+    } catch {
+      // fall through
+    }
+
+    // 2) Fallback: uploaded announcer sound
+    const soundUrl = display.settings?.announcer_sound_url;
     if (soundUrl?.startsWith("/storage/announcers/")) {
-      const audio = new Audio(soundUrl);
-      audio.volume = Math.min(1, Math.max(0, volume));
+      const audio = new Audio(resolveBackendUrl(soundUrl));
+      audio.volume = vol;
       void audio.play().catch(() => toast.error("Browser memblokir suara. Klik lagi untuk tes."));
       return;
     }
 
+    // 3) Last-ditch: browser speechSynthesis
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     const utterance = new SpeechSynthesisUtterance("Nomor antrian A001, silakan menuju loket satu");
     utterance.lang = "id-ID";
-    utterance.volume = Math.min(1, Math.max(0, volume));
+    utterance.volume = vol;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
@@ -513,7 +576,15 @@ export default function DisplaysPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-end pt-2">
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDisplayDialog(display)}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit Display
+                    </Button>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -579,6 +650,43 @@ export default function DisplaysPage() {
             </div>
             <Button type="submit" className="w-full" disabled={!videoFile || !videoTitle || !selectedDisplayId || createVideo.isPending}>
               {createVideo.isPending ? "Mengupload..." : "Simpan"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDisplayOpen} onOpenChange={setEditDisplayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Display</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditDisplay} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-name">Nama Display</Label>
+              <Input
+                id="edit-display-name"
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="Contoh: Display Utama"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-location">Deskripsi / Lokasi</Label>
+              <Input
+                id="edit-display-location"
+                value={editDisplayLocation}
+                onChange={(e) => setEditDisplayLocation(e.target.value)}
+                placeholder="Contoh: Lobby Utama"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!editDisplayName || !editDisplayLocation || updateDisplay.isPending}
+            >
+              {updateDisplay.isPending ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </form>
         </DialogContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@/lib/types";
 import {
   Dialog,
@@ -42,11 +42,34 @@ export function UserFormDialog({
   user,
   onSubmit,
 }: UserFormDialogProps) {
+  const resetForm = () => {
+    setName(user?.name ?? "");
+    setEmail(user?.email ?? "");
+    setPassword("");
+    setRole(user?.role ?? "loket");
+    setIsActive(user?.is_active ?? true);
+  };
+
   const [name, setName] = useState(() => user?.name ?? "");
   const [email, setEmail] = useState(() => user?.email ?? "");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"admin" | "loket" | "super">(() => user?.role ?? "loket");
   const [isActive, setIsActive] = useState(() => user?.is_active ?? true);
+
+  useEffect(() => {
+    if (!open) return;
+
+    setName(user?.name ?? "");
+    setEmail(user?.email ?? "");
+    setPassword("");
+    setRole(user?.role ?? "loket");
+    setIsActive(user?.is_active ?? true);
+  }, [open, user]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) resetForm();
+    onOpenChange(nextOpen);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,16 +89,12 @@ export function UserFormDialog({
   };
 
   const handleCancel = () => {
-    setName("");
-    setEmail("");
-    setPassword("");
-    setRole("loket");
-    setIsActive(true);
+    resetForm();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
