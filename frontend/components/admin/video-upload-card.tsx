@@ -58,7 +58,7 @@ export function VideoUploadCard({ video, onDelete, onUpdate, onReplaceFile }: Vi
       const formData = new FormData();
       formData.append("video", newFile);
       formData.append("title", title);
-      formData.append("is_active", String(isActive));
+      formData.append("is_active", isActive ? "1" : "0");
       formData.append("playlist_order", String(playlistOrder));
       onReplaceFile(video.id, formData);
     }
