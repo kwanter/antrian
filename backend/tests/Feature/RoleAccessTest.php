@@ -195,7 +195,7 @@ class RoleAccessTest extends TestCase
         $this->actingAs($admin)->postJson('/api/v1/users', [
             'name' => 'New User',
             'email' => 'new@test.com',
-            'password' => 'password',
+            'password' => 'password123',
             'role' => 'loket',
         ])->assertStatus(201);
         $this->actingAs($admin)->putJson("/api/v1/users/{$target->id}", [
@@ -262,7 +262,6 @@ class RoleAccessTest extends TestCase
         $loket = $this->createLoketWithCounter();
         $station = KioskStation::create([
             'name' => 'Station 1',
-            'bridge_token' => 'test',
             'status' => 'offline',
         ]);
 
@@ -281,7 +280,6 @@ class RoleAccessTest extends TestCase
         $admin = $this->createUser('admin');
         $station = KioskStation::create([
             'name' => 'Station 1',
-            'bridge_token' => 'test',
             'status' => 'offline',
         ]);
 
@@ -466,18 +464,14 @@ class RoleAccessTest extends TestCase
         ]);
     }
 
-    public function test_super_can_impersonate_loket(): void
+    public function test_super_cannot_impersonate_loket(): void
     {
         $super = $this->createUser('super');
         $loket = $this->createLoketWithCounter();
 
         $response = $this->actingAs($super)->postJson("/api/v1/auth/impersonate/{$loket->id}");
 
-        $response->assertStatus(200);
-        $this->assertDatabaseHas('audit_logs', [
-            'action' => 'impersonate.start',
-            'user_id' => $super->id,
-        ]);
+        $response->assertStatus(403);
     }
 
     public function test_loket_cannot_impersonate(): void
@@ -758,17 +752,70 @@ class RoleAccessTest extends TestCase
     }
 
     // ────────────────────────────────────────────
-    // Track C regression gaps — super role parity with admin
+    // Super-role scope — counter operations only.
+    // Per Decision Log (security-audit-plan/decision-super-scope), super must
+    // NOT reach user/audit/kiosk/printer/display/video/layanan management.
     // ────────────────────────────────────────────
 
-    public function test_super_has_same_access_as_admin(): void
+    public function test_super_can_access_counters(): void
     {
         $super = $this->createUser('super');
 
-        $this->actingAs($super)->getJson('/api/v1/users')->assertOk();
         $this->actingAs($super)->getJson('/api/v1/counters')->assertOk();
-        $this->actingAs($super)->getJson('/api/v1/audit-logs')->assertOk();
-        $this->actingAs($super)->getJson('/api/v1/kiosk-stations')->assertOk();
-        $this->actingAs($super)->getJson('/api/v1/printer-profiles')->assertOk();
+    }
+
+    public function test_super_cannot_access_users(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)->getJson('/api/v1/users')->assertForbidden();
+    }
+
+    public function test_super_cannot_access_audit_logs(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)->getJson('/api/v1/audit-logs')->assertForbidden();
+    }
+
+    public function test_super_cannot_access_kiosk_stations(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)->getJson('/api/v1/kiosk-stations')->assertForbidden();
+    }
+
+    public function test_super_cannot_access_printer_profiles(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)->getJson('/api/v1/printer-profiles')->assertForbidden();
+    }
+
+    public function test_super_cannot_create_display(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)
+            ->postJson('/api/v1/displays', ['name' => 'x', 'location' => 'y'])
+            ->assertForbidden();
+    }
+
+    public function test_super_cannot_create_video(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)
+            ->postJson('/api/v1/videos', [])
+            ->assertForbidden();
+    }
+
+    public function test_super_cannot_create_layanan(): void
+    {
+        $super = $this->createUser('super');
+
+        $this->actingAs($super)
+            ->postJson('/api/v1/layanans', ['name' => 'x', 'code' => 'X'])
+            ->assertForbidden();
     }
 }

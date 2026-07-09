@@ -7,7 +7,6 @@ use App\Models\AuditLog;
 use App\Models\KioskStation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class KioskStationsController extends Controller
 {
@@ -29,7 +28,6 @@ class KioskStationsController extends Controller
 
         $station = KioskStation::create([
             'name' => $request->name,
-            'bridge_token' => Str::random(64),
             'status' => 'offline',
             'printer_profile_id' => $request->printer_profile_id,
         ]);
@@ -38,7 +36,7 @@ class KioskStationsController extends Controller
             action: 'create',
             model: 'KioskStation',
             modelId: $station->id,
-            changes: ['name' => $station->name, 'bridge_token' => '(hidden)'],
+            changes: ['name' => $station->name],
             ipAddress: $request->ip(),
             userId: $request->user()?->id
         );
@@ -98,26 +96,6 @@ class KioskStationsController extends Controller
 
         return response()->json([
             'message' => 'Kiosk station deleted successfully',
-        ]);
-    }
-
-    public function regenerateToken(Request $request, KioskStation $kioskStation): JsonResponse
-    {
-        $oldToken = $kioskStation->bridge_token;
-        $kioskStation->update(['bridge_token' => Str::random(64)]);
-
-        AuditLog::log(
-            action: 'regenerate_token',
-            model: 'KioskStation',
-            modelId: $kioskStation->id,
-            changes: ['old_token_preview' => substr($oldToken, 0, 8) . '...'],
-            ipAddress: $request->ip(),
-            userId: $request->user()?->id
-        );
-
-        return response()->json([
-            'data' => $kioskStation,
-            'message' => 'Token regenerated successfully',
         ]);
     }
 

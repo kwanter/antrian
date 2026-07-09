@@ -7,6 +7,11 @@ const api = axios.create({
     Accept: "application/json",
   },
   withCredentials: true,
+  // Send the XSRF-TOKEN cookie back as the X-XSRF-TOKEN header on every
+  // request. Required now that ValidateCsrfToken runs on the API stack
+  // (F-04). Axios >=1 defaults this to false, so without it the cookie
+  // fetched via /sanctum/csrf-cookie is never attached and mutations 419.
+  withXSRFToken: true,
 });
 
 // Clear Content-Type for FormData (let browser set boundary)

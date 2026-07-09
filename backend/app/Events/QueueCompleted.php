@@ -5,6 +5,7 @@ namespace App\Events;
 use App\Models\Queue;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -19,8 +20,10 @@ class QueueCompleted implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
+        // F-22: queue-updates is operator-facing (loket) -> private.
+        // display-sync stays public (displays are unauthenticated LAN clients).
         return [
-            new Channel('queue-updates'),
+            new PrivateChannel('queue-updates'),
             new Channel('display-sync'),
         ];
     }

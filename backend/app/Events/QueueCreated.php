@@ -3,8 +3,8 @@
 namespace App\Events;
 
 use App\Models\Queue;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -19,8 +19,11 @@ class QueueCreated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
+        // F-22: queue-updates is operator-facing (loket). Make it private so
+        // only authenticated users can subscribe — a snooping LAN client can
+        // no longer read all queue lifecycle events.
         return [
-            new Channel('queue-updates'),
+            new PrivateChannel('queue-updates'),
         ];
     }
 

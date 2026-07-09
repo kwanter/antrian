@@ -11,6 +11,17 @@ class AuditLogsController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        // F-35: validate filter params so malformed input is rejected with a
+        // clear 422 rather than silently producing empty/garbage result sets.
+        $request->validate([
+            'model' => 'sometimes|string|max:100',
+            'action' => 'sometimes|string|max:100',
+            'user_id' => 'sometimes|integer|exists:users,id',
+            'start_date' => 'sometimes|date',
+            'end_date' => 'sometimes|date',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $query = AuditLog::with('user');
 
         // Filter by model

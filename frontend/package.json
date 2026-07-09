@@ -19,7 +19,7 @@
     "framer-motion": "^12.40.0",
     "laravel-echo": "^2.3.4",
     "lucide-react": "^1.14.0",
-    "next": "16.2.4",
+    "next": "^16.2.10",
     "next-themes": "^0.4.6",
     "pusher-js": "^8.5.0",
     "react": "19.2.4",

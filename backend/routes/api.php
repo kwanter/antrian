@@ -24,8 +24,10 @@ Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/auth/login', [AuthController::class, 'login']);
 
-    // Kiosk — ticket creation (no auth required)
-    Route::post('/queues', [QueuesController::class, 'store']);
+    // Kiosk — ticket creation (no auth required). Rate-limited per IP since
+    // the kiosk bridge_token was removed (decision-kiosk-token): public
+    // intake abuse is controlled here, not by per-kiosk auth.
+    Route::post('/queues', [QueuesController::class, 'store'])->middleware('throttle:30,1');
     Route::get('/queues/stats', [QueuesController::class, 'stats']);
 
     // Display page routes — public for display monitors
@@ -39,8 +41,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/layanans/{layanan}', [LayananController::class, 'show']);
     Route::get('/layanans/{layanan}/queues', [LayananController::class, 'queues']);
 
-    // TTS — public for TV display announcer
-    Route::get('/tts/queue/{queue}', [TtsController::class, 'queue']);
+    // TTS — public for TV display announcer. F-25: rate-limited per IP; the
+    // endpoint invokes edge-tts + ffmpeg and writes public storage, so abuse
+    // would grow storage and consume CPU.
+    Route::get('/tts/queue/{queue}', [TtsController::class, 'queue'])->middleware('throttle:30,1');
 
     // Printer Profiles — public default for kiosk
     Route::get('/printer-profiles/default', [PrinterProfilesController::class, 'defaultProfile']);
@@ -68,10 +72,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Videos — detail requires authentication; listing is public above
     Route::get('/videos/{video}', [VideosController::class, 'show']);
 
-    // Admin/super management routes. Loket users must never reach these APIs.
+    // Counter operations — admin and super. Per Decision Log
+    // (security-audit-plan/decision-super-scope), super is limited to
+    // counter operations. All other management surfaces are admin-only.
     Route::middleware('role:admin,super')->group(function () {
-        // Impersonate — admin can preview as loket
-        Route::post('/auth/impersonate/{userId}', [AuthController::class, 'impersonate']);
         // Counters
         Route::get('/counters', [CountersController::class, 'index']);
         Route::post('/counters', [CountersController::class, 'store']);
@@ -81,6 +85,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/counters/{counter}/assign-user', [CountersController::class, 'assignUser']);
         Route::post('/counters/{counter}/unassign-user', [CountersController::class, 'unassignUser']);
         Route::post('/counters/{counter}/sync-users', [CountersController::class, 'syncUsers']);
+    });
+
+    // Admin-only management routes. Super and loket must never reach these.
+    Route::middleware('role:admin')->group(function () {
+        // Impersonate — admin can preview as loket
+        Route::post('/auth/impersonate/{userId}', [AuthController::class, 'impersonate']);
 
         // Users
         Route::get('/users', [UsersController::class, 'index']);
@@ -115,7 +125,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'show']);
         Route::put('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'update']);
         Route::delete('/kiosk-stations/{kioskStation}', [KioskStationsController::class, 'destroy']);
-        Route::post('/kiosk-stations/{kioskStation}/regenerate-token', [KioskStationsController::class, 'regenerateToken']);
         Route::post('/kiosk-stations/{kioskStation}/heartbeat', [KioskStationsController::class, 'heartbeat']);
 
         // Layanan — list/show/queues remain public above

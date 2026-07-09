@@ -5,6 +5,7 @@ namespace App\Events;
 use App\Models\Queue;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -23,9 +24,15 @@ class QueueCalled implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
+        // F-08: loket.{counterId} is a PrivateChannel so only operators
+        // authorized for that counter (or admins) can subscribe — a snooping
+        // LAN client can no longer read all counters' operator streams.
+        // F-22: queue-updates is operator-facing (loket) -> private.
+        // display-sync stays public because displays are unauthenticated LAN
+        // clients by design and need "now serving" data.
         return [
-            new Channel('queue-updates'),
-            new Channel('loket.' . $this->queue->counter_id),
+            new PrivateChannel('queue-updates'),
+            new PrivateChannel('loket.' . $this->queue->counter_id),
             new Channel('display-sync'),
         ];
     }

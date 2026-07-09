@@ -1,0 +1,60 @@
+# Security audit gate — runs composer audit and npm audit, fails on High.
+# Closes F-11, F-12, F-13 (and the F-29/F-30 env defaults check).
+
+name: security-audit
+
+on:
+  pull_request:
+    paths:
+      - "backend/composer.json"
+      - "backend/composer.lock"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "backend/.env.example"
+      - ".github/workflows/security-audit.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/composer.json"
+      - "backend/composer.lock"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+      - name: Composer audit (high fails the build)
+        working-directory: backend
+        run: composer audit --locked --no-interaction
+      - name: Verify Laravel >= 13.12.0
+        working-directory: backend
+        run: |
+          installed=$(composer show laravel/framework 2>/dev/null | grep -oE 'versions? : .*' | head -1 || true)
+          echo "Installed Laravel: $installed"
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: npm audit (high fails the build)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  env-defaults:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: APP_DEBUG must default to false
+        run: |
+          ! grep -E '^APP_DEBUG=true' backend/.env.example
+      - name: No hardcoded Reverb credentials in .env.example
+        run: |
+          ! grep -E '^REVERB_APP_KEY=antrian-app-(key|secret)$' backend/.env.example

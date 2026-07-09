@@ -33,7 +33,9 @@ export function useQueueChannel(onUpdate?: QueueCallback) {
   useEffect(() => {
     if (!echo) return;
 
-    const channel = echo.channel("queue-updates");
+    // F-22: queue-updates is now a private channel (operator-facing). Use
+    // echo.private() so the subscription hits /broadcasting/auth.
+    const channel = echo.private("queue-updates");
 
     channel.listenToAll((_eventName: string, data: unknown) => {
       const event = data as QueueUpdateEvent;
@@ -45,7 +47,7 @@ export function useQueueChannel(onUpdate?: QueueCallback) {
       onUpdateRef.current?.(event);
     });
 
-    return () => echo.leaveChannel("queue-updates");
+    return () => echo.leaveChannel("private-queue-updates");
   }, [echo, onUpdateRef]);
 }
 
@@ -56,8 +58,10 @@ export function useCounterChannel(counterId: number | undefined, onUpdate?: Queu
   useEffect(() => {
     if (!echo || counterId === undefined) return;
 
+    // F-08: loket.{counterId} is now a private channel — only operators
+    // authorized for that counter may subscribe.
     const channelName = `loket.${counterId}`;
-    const channel = echo.channel(channelName);
+    const channel = echo.private(channelName);
 
     channel.listenToAll((_eventName: string, data: unknown) => {
       const event = data as QueueUpdateEvent;
@@ -69,7 +73,7 @@ export function useCounterChannel(counterId: number | undefined, onUpdate?: Queu
       onUpdateRef.current?.(event);
     });
 
-    return () => echo.leaveChannel(channelName);
+    return () => echo.leaveChannel(`private-${channelName}`);
   }, [echo, counterId, onUpdateRef]);
 }
 

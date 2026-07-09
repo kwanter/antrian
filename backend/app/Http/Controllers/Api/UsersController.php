@@ -46,7 +46,7 @@ class UsersController extends Controller
         $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:10',
             'role' => 'required|in:admin,loket,super',
             'is_active' => 'sometimes|boolean',
             'counter_id' => 'nullable|exists:counters,id',
@@ -95,7 +95,7 @@ class UsersController extends Controller
 
         // Only validate password if provided
         if ($request->has('password')) {
-            $rules['password'] = 'string|min:6';
+            $rules['password'] = 'string|min:10';
         }
 
         // Role changes are admin/super only by route middleware; keep explicit

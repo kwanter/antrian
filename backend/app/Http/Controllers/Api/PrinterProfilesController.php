@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicPrinterProfileResource;
 use App\Models\AuditLog;
 use App\Models\PrinterProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class PrinterProfilesController extends Controller
 {
@@ -27,8 +29,11 @@ class PrinterProfilesController extends Controller
             ->first()
             ?? PrinterProfile::query()->orderBy('id')->first();
 
+        // F-23: public default profile uses PublicPrinterProfileResource,
+        // which trims peripheral config (connection_type, baud_rate) and
+        // restricts logo_url to local /storage/ paths.
         return response()->json([
-            'data' => $profile,
+            'data' => $profile ? new PublicPrinterProfileResource($profile) : null,
         ]);
     }
 
@@ -53,8 +58,9 @@ class PrinterProfilesController extends Controller
             'template.footer_text' => 'nullable|string|max:500',
         ]);
 
-        // Normalize: template values mirror to top-level if not explicitly set
-        $template = $request->template ?? [];
+        // F-36: strip unknown top-level template keys. Validation whitelists
+        // known sub-keys but does not reject extras; drop them before persist.
+        $template = $this->filterTemplate($request->template ?? []);
         $paperSize = $request->paper_size
             ?? $template['paper_size'] ?? '58mm';
         $copyCount = $request->copy_count
@@ -119,8 +125,8 @@ class PrinterProfilesController extends Controller
             'template.footer_text' => 'nullable|string|max:500',
         ]);
 
-        // Normalize: template values mirror to top-level if not explicitly set
-        $template = $request->template ?? [];
+        // F-36: strip unknown top-level template keys before persist.
+        $template = $this->filterTemplate($request->template ?? []);
         $paperSize = $request->paper_size
             ?? $template['paper_size'] ?? $printerProfile->paper_size;
         $copyCount = $request->copy_count
@@ -181,5 +187,28 @@ class PrinterProfilesController extends Controller
         return response()->json([
             'message' => 'Printer profile deleted successfully',
         ]);
+    }
+
+    /**
+     * Strip unknown top-level template keys before persistence (F-36).
+     * Validation whitelists known sub-keys but does not reject extras, so an
+     * admin could otherwise persist arbitrary keys that later surface on the
+     * public default-profile endpoint.
+     */
+    private function filterTemplate(array $template): array
+    {
+        $allowed = [
+            'paper_size',
+            'copy_count',
+            'printer_model',
+            'connection_type',
+            'baud_rate',
+            'charset',
+            'cut_mode',
+            'header_text',
+            'footer_text',
+        ];
+
+        return Arr::only($template, $allowed);
     }
 }

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicVideoResource;
 use App\Models\AuditLog;
 use App\Models\Video;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 class VideosController extends Controller
@@ -25,8 +27,11 @@ class VideosController extends Controller
 
         $videos = $query->orderBy('playlist_order')->get();
 
+        // F-20: public video listing uses PublicVideoResource, which drops
+        // the full display relation (including settings) and projects only
+        // display_id + display_name.
         return response()->json([
-            'data' => $videos,
+            'data' => PublicVideoResource::collection($videos),
         ]);
     }
 
@@ -85,7 +90,6 @@ class VideosController extends Controller
 
         $request->validate([
             'video' => 'sometimes|file|mimes:mp4,webm,avi,mov,mkv|max:1048576',
-            'file_url' => 'sometimes|url',
             'title' => 'sometimes|string|max:255',
             'duration' => 'nullable|integer',
             'volume_level' => 'nullable|numeric|min:0|max:1',
@@ -93,17 +97,30 @@ class VideosController extends Controller
             'playlist_order' => 'nullable|integer',
         ]);
 
+        // F-10: file_url is no longer client-controllable. It is derived
+        // only from an uploaded file below. This closes the arbitrary-URL /
+        // SSRF injection vector.
         $updateData = $request->only([
-            'file_url', 'title', 'duration', 'volume_level', 'is_active', 'playlist_order'
+            'title', 'duration', 'volume_level', 'is_active', 'playlist_order',
         ]);
 
+        $oldFileUrl = null;
         if ($request->hasFile('video')) {
             $path = $request->file('video')->store('videos', 'public');
             $updateData['file_url'] = "/storage/{$path}";
             $updateData['duration'] = $request->duration ?? $this->extractDuration(storage_path("app/public/{$path}"));
+
+            // F-26: capture the previous managed URL; delete it only AFTER the
+            // DB update succeeds, so a failed update never leaves the row
+            // pointing at a deleted file.
+            $oldFileUrl = $video->file_url;
         }
 
         $video->update($updateData);
+
+        if ($oldFileUrl !== null && $oldFileUrl !== $video->file_url) {
+            $this->deleteManagedFile($oldFileUrl);
+        }
 
         AuditLog::log(
             action: 'update',
@@ -124,11 +141,8 @@ class VideosController extends Controller
     {
         $oldData = $video->toArray();
 
-        // Delete the file from storage if it's a local file
-        if ($video->file_url && str_starts_with($video->file_url, '/storage/')) {
-            $relativePath = str_replace('/storage/', '', $video->file_url);
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
-        }
+        // Delete the managed local file (shared with update() replacement).
+        $this->deleteManagedFile($video->file_url);
 
         $video->delete();
 
@@ -163,6 +177,21 @@ class VideosController extends Controller
         ]);
     }
 
+    /**
+     * Delete a managed local /storage/ video file. External/custom URLs are
+     * left alone (nothing local to delete). Shared by update() (replacement
+     * cleanup, F-26) and destroy().
+     */
+    private function deleteManagedFile(?string $fileUrl): void
+    {
+        if (! $fileUrl || ! str_starts_with($fileUrl, '/storage/')) {
+            return;
+        }
+
+        $relativePath = str_replace('/storage/', '', $fileUrl);
+        Storage::disk('public')->delete($relativePath);
+    }
+
     protected function extractDuration(string $filePath): ?int
     {
         if (!file_exists($filePath)) {
@@ -183,7 +212,17 @@ class VideosController extends Controller
         }
 
         $process = new Process([$ffprobe, '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', $filePath]);
-        $process->run();
+
+        // F-34: explicit short timeout so a malformed upload cannot hold a
+        // request worker for the Symfony default 60s. Handle timeout/failure
+        // gracefully — duration is optional metadata.
+        $process->setTimeout(15);
+
+        try {
+            $process->run();
+        } catch (\Symfony\Component\Process\Exception\ProcessTimedOutException|\Throwable $e) {
+            return null;
+        }
 
         $output = trim($process->getOutput());
 
