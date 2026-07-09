@@ -1,0 +1,500 @@
+# Instincts generated from https://github.com/kwanter/antrian
+# Generated: 2026-07-09T01:40:58.290Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: antrian-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Commit Length
+
+## Action
+
+Write moderate-length commit messages (~65 characters)
+
+## Evidence
+
+- Average commit message length: 65 chars
+- Based on 1 commits
+
+---
+id: antrian-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: antrian-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: antrian-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: antrian-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: antrian-workflow-add-or-modify-database-table
+trigger: "when doing add or modify database table"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Workflow Add Or Modify Database Table
+
+## Action
+
+Follow the add-or-modify-database-table workflow:
+1. Create or update migration file in backend/database/migrations/
+2. Update corresponding Eloquent model in backend/app/Models/
+3. Update or create related factory in backend/database/factories/ (if needed)
+4. Update or create related resource in backend/app/Http/Resources/ (if needed)
+5. Update controller logic in backend/app/Http/Controllers/Api/ (if needed)
+6. Write or update tests in backend/tests/Feature/
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: backend/database/migrations/*.php, backend/app/Models/*.php, backend/database/factories/*.php
+
+---
+id: antrian-workflow-add-or-update-api-endpoint
+trigger: "when doing add or update api endpoint"
+confidence: 0.65
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Workflow Add Or Update Api Endpoint
+
+## Action
+
+Follow the add-or-update-api-endpoint workflow:
+1. Add or update route in backend/routes/api.php
+2. Implement or modify controller method in backend/app/Http/Controllers/Api/
+3. Update or create resource/DTO in backend/app/Http/Resources/ (if needed)
+4. Write or update feature tests in backend/tests/Feature/
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~3x per month
+- Files: backend/routes/api.php, backend/app/Http/Controllers/Api/*.php, backend/app/Http/Resources/*.php
+
+---
+id: antrian-workflow-security-hardening-or-audit-remediation
+trigger: "when doing security hardening or audit remediation"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Workflow Security Hardening Or Audit Remediation
+
+## Action
+
+Follow the security-hardening-or-audit-remediation workflow:
+1. Update backend/app/Http/Controllers/Api/ and backend/app/Models/ for security fixes
+2. Modify backend/bootstrap/app.php or backend/routes/channels.php for middleware and channel security
+3. Update .env.example and configuration files
+4. Add or update CI workflow in .github/workflows/
+5. Update dependencies in backend/composer.json and composer.lock, frontend/package.json and package-lock.json
+6. Write or update security-focused tests in backend/tests/Feature/
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: backend/app/Http/Controllers/Api/*.php, backend/app/Models/*.php, backend/bootstrap/app.php
+
+---
+id: antrian-workflow-add-or-update-feature-tests
+trigger: "when doing add or update feature tests"
+confidence: 0.7
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/kwanter/antrian
+---
+
+# Antrian Workflow Add Or Update Feature Tests
+
+## Action
+
+Follow the add-or-update-feature-tests workflow:
+1. Write or update test file in backend/tests/Feature/
+2. Ensure tests cover new/changed logic in controllers, models, or resources
+3. Run test suite to verify correctness
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~4x per month
+- Files: backend/tests/Feature/*.php
+
+---
+id: antrian-instinct-file-naming-pascalcase
+trigger: "When creating a new file in the codebase."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct File Naming Pascalcase
+
+## Action
+
+Name the file using PascalCase (e.g., MyNewFile.ts).
+
+## Evidence
+
+- Pattern in namingConventions.files: PascalCase
+
+---
+id: antrian-instinct-function-naming-camelcase
+trigger: "When defining a new function."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Function Naming Camelcase
+
+## Action
+
+Name the function using camelCase (e.g., fetchData).
+
+## Evidence
+
+- Pattern in namingConventions.functions: camelCase
+
+---
+id: antrian-instinct-class-naming-pascalcase
+trigger: "When defining a new class."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Class Naming Pascalcase
+
+## Action
+
+Name the class using PascalCase (e.g., UserController).
+
+## Evidence
+
+- Pattern in namingConventions.classes: PascalCase
+
+---
+id: antrian-instinct-constant-naming-screaming-snake-case
+trigger: "When defining a constant."
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Constant Naming Screaming Snake Case
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE (e.g., MAX_RETRIES).
+
+## Evidence
+
+- Pattern in namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: antrian-instinct-import-alias-style
+trigger: "When importing modules."
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Import Alias Style
+
+## Action
+
+Use alias import style.
+
+## Evidence
+
+- Pattern in importStyle: alias
+
+---
+id: antrian-instinct-export-named-style
+trigger: "When exporting modules or functions."
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Export Named Style
+
+## Action
+
+Use named exports.
+
+## Evidence
+
+- Pattern in exportStyle: named
+
+---
+id: antrian-instinct-test-file-pattern
+trigger: "When creating a new test file."
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Test File Pattern
+
+## Action
+
+Name the test file with the pattern *.test.ts.
+
+## Evidence
+
+- Pattern in testing.filePattern: *.test.ts
+
+---
+id: antrian-instinct-feature-test-location
+trigger: "When adding or updating feature tests."
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Feature Test Location
+
+## Action
+
+Place feature tests in backend/tests/Feature/ directory.
+
+## Evidence
+
+- Pattern in workflows.add-or-update-feature-tests.filesInvolved
+
+---
+id: antrian-instinct-feature-test-type
+trigger: "When writing tests for new or changed functionality."
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Feature Test Type
+
+## Action
+
+Write unit tests as feature tests in backend/tests/Feature/.
+
+## Evidence
+
+- Pattern in testing.testTypes: unit
+- Pattern in workflows.add-or-update-feature-tests.filesInvolved
+
+---
+id: antrian-instinct-commit-prefix-security
+trigger: "When making a commit related to security fixes or audit remediation."
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Commit Prefix Security
+
+## Action
+
+Prefix the commit message with 'security:'.
+
+## Evidence
+
+- Pattern in commits.prefixes: security
+- Seen in commit: 'security: full 6-cluster remediation from codebase security audit'
+
+---
+id: antrian-instinct-commit-length-moderate
+trigger: "When writing a commit message."
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Commit Length Moderate
+
+## Action
+
+Keep the commit message concise, around 65 characters on average.
+
+## Evidence
+
+- Pattern in commits.averageLength: 65
+
+---
+id: antrian-instinct-add-modify-database-table
+trigger: "When someone wants to add a new table or change table structure in the database."
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Add Modify Database Table
+
+## Action
+
+Create or update migration, update model, factory, resource, controller, and feature tests as per workflow.
+
+## Evidence
+
+- Workflow: add-or-modify-database-table
+- Pattern in workflows.add-or-modify-database-table.commitSequence
+
+---
+id: antrian-instinct-add-update-api-endpoint
+trigger: "When someone wants to expose new functionality or modify existing API behavior."
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Add Update Api Endpoint
+
+## Action
+
+Add/update route, controller, resource/DTO, and feature tests as per workflow.
+
+## Evidence
+
+- Workflow: add-or-update-api-endpoint
+- Pattern in workflows.add-or-update-api-endpoint.commitSequence
+
+---
+id: antrian-instinct-security-hardening-audit-remediation
+trigger: "When someone wants to address security findings or proactively harden the codebase."
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Security Hardening Audit Remediation
+
+## Action
+
+Update code, configuration, CI workflow, dependencies, and security-focused tests as per workflow.
+
+## Evidence
+
+- Workflow: security-hardening-or-audit-remediation
+- Pattern in workflows.security-hardening-or-audit-remediation.commitSequence
+
+---
+id: antrian-instinct-add-update-feature-tests
+trigger: "When someone adds a new feature or modifies existing logic and needs to ensure correctness."
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: kwanter/antrian
+---
+
+# Antrian Instinct Add Update Feature Tests
+
+## Action
+
+Write or update feature tests in backend/tests/Feature/ and run the test suite.
+
+## Evidence
+
+- Workflow: add-or-update-feature-tests
+- Pattern in workflows.add-or-update-feature-tests.commitSequence
+
