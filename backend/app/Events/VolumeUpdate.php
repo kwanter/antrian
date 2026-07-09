@@ -36,11 +36,21 @@ class VolumeUpdate implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
+        // F-21: project only the display-safe settings keys, not the full
+        // admin-controlled blob. Announcer keys are operational and required
+        // by the display runtime for live announcer updates. Arbitrary keys
+        // (that future admin edits could introduce) are dropped.
+        $safeSettings = null;
+        if ($this->settings !== null) {
+            $allowed = ['volume', 'counter_id', 'announcer_enabled', 'announcer_volume', 'announcer_sound_url', 'announcer_sound_title'];
+            $safeSettings = array_intersect_key($this->settings, array_flip($allowed));
+        }
+
         return [
             'display_id' => $this->displayId,
             'volume' => $this->volume,
             'video_id' => $this->videoId,
-            'settings' => $this->settings,
+            'settings' => $safeSettings,
         ];
     }
 }

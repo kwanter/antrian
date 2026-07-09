@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\VolumeUpdate;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicDisplayResource;
+use App\Http\Resources\PublicQueueResource;
 use App\Models\AuditLog;
 use App\Models\Display;
 use Illuminate\Http\JsonResponse;
@@ -12,29 +14,48 @@ use Illuminate\Support\Facades\Storage;
 
 class DisplaysController extends Controller
 {
+    /**
+     * Settings keys accepted on write (store/update). Kept in sync with
+     * PublicDisplayResource::SETTINGS_ALLOWLIST plus announcer keys written
+     * by updateAnnouncer(). F-19: reject arbitrary admin-stored JSON.
+     */
+    private const SETTINGS_ALLOWLIST = [
+        'volume',
+        'counter_id',
+        'announcer_enabled',
+        'announcer_volume',
+        'announcer_sound_url',
+        'announcer_sound_title',
+    ];
+
     public function index(): JsonResponse
     {
         $displays = Display::with('activeVideos')->get();
 
         return response()->json([
-            'data' => $displays,
+            'data' => PublicDisplayResource::collection($displays),
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:100',
             'location' => 'required|string|max:255',
             'is_active' => 'sometimes|boolean',
             'settings' => 'sometimes|array',
+            'settings.volume' => 'sometimes|numeric|min:0|max:1',
+            'settings.counter_id' => 'sometimes|nullable|exists:counters,id',
         ]);
 
+        // F-19: only allowlisted settings keys are persisted on create.
+        $settings = $this->filterSettings($request->input('settings', []));
+
         $display = Display::create([
-            'name' => $request->name,
-            'location' => $request->location,
+            'name' => $validated['name'],
+            'location' => $validated['location'],
             'is_active' => $request->boolean('is_active', true),
-            'settings' => $request->input('settings', []),
+            'settings' => $settings,
         ]);
 
         AuditLog::log(
@@ -55,7 +76,7 @@ class DisplaysController extends Controller
     public function show(Display $display): JsonResponse
     {
         return response()->json([
-            'data' => $display->load('videos'),
+            'data' => new PublicDisplayResource($display->load('videos')),
         ]);
     }
 
@@ -75,7 +96,8 @@ class DisplaysController extends Controller
         $updateData = $request->only(['name', 'location', 'is_active']);
 
         if ($request->has('settings')) {
-            $settings = array_intersect_key($request->input('settings', []), array_flip(['volume', 'counter_id']));
+            // F-19: only allowlisted keys are merged in. Unknown keys are dropped.
+            $settings = $this->filterSettings($request->input('settings', []));
             $updateData['settings'] = array_merge($display->settings ?? [], $settings);
         }
 
@@ -121,7 +143,7 @@ class DisplaysController extends Controller
             ->where('counter_id', $display->settings['counter_id'] ?? null)
             ->whereDate('created_at', today())
             ->orderBy('called_at', 'desc')
-            ->first();
+            ->first()?->load('counter');
 
         $recentQueues = \App\Models\Queue::where('status', 'called')
             ->where('counter_id', $display->settings['counter_id'] ?? null)
@@ -131,12 +153,16 @@ class DisplaysController extends Controller
             ->limit(10)
             ->get();
 
+        $recentQueues->load('counter');
+
         $activeVideo = $display->activeVideos()->first();
 
+        // F-09: queue payloads go through PublicQueueResource, which drops
+        // customer_name / customer_phone from the public sync response.
         return response()->json([
             'data' => [
-                'current_queue' => $currentQueue?->load('counter'),
-                'recent_queues' => $recentQueues->load('counter'),
+                'current_queue' => $currentQueue ? new PublicQueueResource($currentQueue) : null,
+                'recent_queues' => PublicQueueResource::collection($recentQueues),
                 'video_settings' => [
                     'volume' => $display->settings['volume'] ?? $activeVideo?->volume_level ?? 1.0,
                     'video_id' => $activeVideo?->id,
@@ -237,5 +263,15 @@ class DisplaysController extends Controller
             'message' => 'Announcer settings updated successfully',
             'data' => $updatedDisplay,
         ]);
+    }
+
+    /**
+     * Reduce a settings payload to the allowlisted keys. F-19: prevents
+     * arbitrary admin-stored JSON from being persisted and later served
+     * to public display clients.
+     */
+    private function filterSettings(array $settings): array
+    {
+        return array_intersect_key($settings, array_flip(self::SETTINGS_ALLOWLIST));
     }
 }

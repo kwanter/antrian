@@ -54,6 +54,11 @@ class QueueLifecycleService
     /**
      * Recall a previously called/serving/skipped queue back to "called".
      *
+     * Wraps the transition in a DB::transaction + lockForUpdate so a
+     * concurrent recall/call/skip/complete cannot double-transition the
+     * same row (F-27). The route-bound model may be stale by the time the
+     * lock is acquired, so the row is reloaded and re-checked under lock.
+     *
      * @param  Queue  $queue  The queue to recall.
      * @param  User  $actor  The acting user (loket/admin/super).
      * @param  int|null  $auditUserId  The real user id to credit in the audit
@@ -80,30 +85,40 @@ class QueueLifecycleService
             throw QueueLifecycleException::notToday();
         }
 
-        if (! $queue->isCalled() && ! $queue->isServing() && ! $queue->isSkipped()) {
-            throw QueueLifecycleException::invalidStatus('Queue is not in called, serving, or skipped status');
-        }
-
-        $fromStatus = $queue->status;
         $counterId = $actor->counter_id ?? $queue->counter_id;
 
-        $queue->call($actor->name, $counterId);
+        $queue = DB::transaction(function () use ($queue, $actor, $counterId, $auditUserId, $ipAddress): ?Queue {
+            $locked = Queue::whereKey($queue->id)->lockForUpdate()->firstOrFail();
 
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => self::LOG_RECALLED,
-            'performed_by' => $actor->name,
-            'metadata' => ['counter_id' => $counterId],
-        ]);
+            if (! $locked->isCalled() && ! $locked->isServing() && ! $locked->isSkipped()) {
+                return null;
+            }
 
-        AuditLog::log(
-            action: self::AUDIT_RECALL,
-            model: 'Queue',
-            modelId: $queue->id,
-            changes: ['status' => ['from' => $fromStatus, 'to' => 'called']],
-            ipAddress: $ipAddress,
-            userId: $auditUserId ?? $actor->id,
-        );
+            $fromStatus = $locked->status;
+            $locked->call($actor->name, $counterId);
+
+            QueueLog::create([
+                'queue_id' => $locked->id,
+                'action' => self::LOG_RECALLED,
+                'performed_by' => $actor->name,
+                'metadata' => ['counter_id' => $counterId],
+            ]);
+
+            AuditLog::log(
+                action: self::AUDIT_RECALL,
+                model: 'Queue',
+                modelId: $locked->id,
+                changes: ['status' => ['from' => $fromStatus, 'to' => 'called']],
+                ipAddress: $ipAddress,
+                userId: $auditUserId ?? $actor->id,
+            );
+
+            return $locked;
+        });
+
+        if (! $queue) {
+            throw QueueLifecycleException::invalidStatus('Queue is not in called, serving, or skipped status');
+        }
 
         try {
             broadcast(new QueueCalled($queue));
@@ -140,27 +155,41 @@ class QueueLifecycleService
             throw QueueLifecycleException::forbidden('You are not authorized to skip this queue');
         }
 
-        if (! $queue->isWaiting() && ! $queue->isCalled()) {
-            throw QueueLifecycleException::invalidStatus('Queue cannot be skipped in current status');
+        if (! $queue->created_at->isToday()) {
+            throw QueueLifecycleException::notToday();
         }
 
-        $previousStatus = $queue->status;
-        $queue->skip();
+        $queue = DB::transaction(function () use ($queue, $actor, $auditUserId, $ipAddress): ?Queue {
+            $locked = Queue::whereKey($queue->id)->lockForUpdate()->firstOrFail();
 
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => self::LOG_SKIPPED,
-            'performed_by' => $actor->name,
-        ]);
+            if (! $locked->isWaiting() && ! $locked->isCalled()) {
+                return null;
+            }
 
-        AuditLog::log(
-            action: self::AUDIT_SKIP,
-            model: 'Queue',
-            modelId: $queue->id,
-            changes: ['status' => ['from' => $previousStatus, 'to' => 'skipped']],
-            ipAddress: $ipAddress,
-            userId: $auditUserId ?? $actor->id,
-        );
+            $previousStatus = $locked->status;
+            $locked->skip();
+
+            QueueLog::create([
+                'queue_id' => $locked->id,
+                'action' => self::LOG_SKIPPED,
+                'performed_by' => $actor->name,
+            ]);
+
+            AuditLog::log(
+                action: self::AUDIT_SKIP,
+                model: 'Queue',
+                modelId: $locked->id,
+                changes: ['status' => ['from' => $previousStatus, 'to' => 'skipped']],
+                ipAddress: $ipAddress,
+                userId: $auditUserId ?? $actor->id,
+            );
+
+            return $locked;
+        });
+
+        if (! $queue) {
+            throw QueueLifecycleException::invalidStatus('Queue cannot be skipped in current status');
+        }
 
         try {
             broadcast(new QueueSkipped($queue));
@@ -204,33 +233,46 @@ class QueueLifecycleService
             throw QueueLifecycleException::forbidden('You are not authorized to call this queue');
         }
 
-        if (! $queue->isWaiting()) {
-            throw QueueLifecycleException::invalidStatus('Queue is not in waiting status');
-        }
-
         if (! $queue->created_at->isToday()) {
             throw QueueLifecycleException::notToday();
         }
 
         $counterId = $actor->counter_id ?? $counterIdOverride;
 
-        $queue->call($actor->name, $counterId);
+        $queue = DB::transaction(function () use ($queue, $actor, $counterId, $auditUserId, $ipAddress): ?Queue {
+            // Reload under lock so a concurrent call/skip/complete cannot
+            // double-transition the same row (F-06). The route-bound model
+            // may be stale by the time the lock is acquired.
+            $locked = Queue::whereKey($queue->id)->lockForUpdate()->firstOrFail();
 
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => self::LOG_CALLED,
-            'performed_by' => $actor->name,
-            'metadata' => ['counter_id' => $counterId],
-        ]);
+            if (! $locked->isWaiting()) {
+                return null;
+            }
 
-        AuditLog::log(
-            action: self::AUDIT_CALL,
-            model: 'Queue',
-            modelId: $queue->id,
-            changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
-            ipAddress: $ipAddress,
-            userId: $auditUserId ?? $actor->id,
-        );
+            $locked->call($actor->name, $counterId);
+
+            QueueLog::create([
+                'queue_id' => $locked->id,
+                'action' => self::LOG_CALLED,
+                'performed_by' => $actor->name,
+                'metadata' => ['counter_id' => $counterId],
+            ]);
+
+            AuditLog::log(
+                action: self::AUDIT_CALL,
+                model: 'Queue',
+                modelId: $locked->id,
+                changes: ['status' => ['from' => 'waiting', 'to' => 'called']],
+                ipAddress: $ipAddress,
+                userId: $auditUserId ?? $actor->id,
+            );
+
+            return $locked;
+        });
+
+        if (! $queue) {
+            throw QueueLifecycleException::invalidStatus('Queue is not in waiting status');
+        }
 
         try {
             broadcast(new QueueCalled($queue));
@@ -411,8 +453,30 @@ class QueueLifecycleService
      */
     public function store(array $data): Queue
     {
-        $ticketNumber = $this->generateTicketNumber($data['layanan_id'] ?? null);
+        // F-05: ticket generation reads the latest row and increments in app
+        // code, so concurrent public intake can race the read-increment and
+        // issue the same ticket number. The queues_ticket_unique_per_day
+        // index (layanan_id, ticket_number, ticket_date) makes the DB the
+        // arbiter: the first insert wins, concurrent losers hit a unique
+        // violation and retry with a bumped suffix.
+        $queue = $this->createQueueWithRetry($data);
 
+        try {
+            broadcast(new QueueCreated($queue));
+        } catch (\Throwable $e) {
+            Log::warning('Broadcast failed: '.$e->getMessage());
+        }
+
+        return $queue->load('counter', 'layanan');
+    }
+
+    /**
+     * Attempt the create inside a transaction; on a unique-violation from
+     * the ticket-number index, retry up to a small bound with a fresh
+     * ticket number each time.
+     */
+    private function createQueueWithRetry(array $data, int $maxAttempts = 5): Queue
+    {
         $serviceType = $data['service_type'] ?? null;
         $counterId = null;
 
@@ -424,33 +488,48 @@ class QueueLifecycleService
             }
         }
 
-        $queue = Queue::create([
-            'ticket_number' => $ticketNumber,
-            'service_type' => $serviceType,
-            'layanan_id' => $data['layanan_id'] ?? null,
-            'counter_id' => $counterId,
-            'customer_name' => $data['customer_name'] ?? null,
-            'customer_phone' => $data['customer_phone'] ?? null,
-            'status' => 'waiting',
-        ]);
+        $attempt = 0;
+        while (true) {
+            $attempt++;
+            $ticketNumber = $this->generateTicketNumber($data['layanan_id'] ?? null);
 
-        QueueLog::create([
-            'queue_id' => $queue->id,
-            'action' => self::LOG_CREATED,
-            'performed_by' => 'kiosk',
-            'metadata' => [
-                'service_type' => $queue->service_type,
-                'layanan_id' => $queue->layanan_id,
-            ],
-        ]);
+            try {
+                return DB::transaction(function () use ($data, $serviceType, $counterId, $ticketNumber): Queue {
+                    $queue = Queue::create([
+                        'ticket_number' => $ticketNumber,
+                        'ticket_date' => today(),
+                        'service_type' => $serviceType,
+                        'layanan_id' => $data['layanan_id'] ?? null,
+                        'counter_id' => $counterId,
+                        'customer_name' => $data['customer_name'] ?? null,
+                        'customer_phone' => $data['customer_phone'] ?? null,
+                        'status' => 'waiting',
+                    ]);
 
-        try {
-            broadcast(new QueueCreated($queue));
-        } catch (\Throwable $e) {
-            Log::warning('Broadcast failed: '.$e->getMessage());
+                    QueueLog::create([
+                        'queue_id' => $queue->id,
+                        'action' => self::LOG_CREATED,
+                        'performed_by' => 'kiosk',
+                        'metadata' => [
+                            'service_type' => $queue->service_type,
+                            'layanan_id' => $queue->layanan_id,
+                        ],
+                    ]);
+
+                    return $queue;
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                // SQLSTATE 23000 = integrity constraint violation (unique).
+                // SQLite and MySQL both use this for unique-index conflicts.
+                $isUniqueViolation = ($e->getCode() === '23000')
+                    || str_contains((string) $e->getMessage(), 'Unique violation')
+                    || str_contains((string) $e->getMessage(), 'Duplicate entry');
+
+                if (! $isUniqueViolation || $attempt >= $maxAttempts) {
+                    throw $e;
+                }
+            }
         }
-
-        return $queue->load('counter', 'layanan');
     }
 
     /**

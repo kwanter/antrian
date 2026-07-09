@@ -13,6 +13,7 @@ class Queue extends Model
 
     protected $fillable = [
         'ticket_number',
+        'ticket_date',
         'service_type',
         'customer_name',
         'customer_phone',

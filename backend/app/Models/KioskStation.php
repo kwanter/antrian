@@ -12,7 +12,6 @@ class KioskStation extends Model
 
     protected $fillable = [
         'name',
-        'bridge_token',
         'status',
         'last_heartbeat',
         'printer_profile_id',

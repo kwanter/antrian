@@ -98,7 +98,6 @@ class PrinterProfileTest extends TestCase
         $profile = PrinterProfile::factory()->create();
         KioskStation::create([
             'name' => 'Kiosk Utama',
-            'bridge_token' => 'test-token',
             'status' => 'online',
             'printer_profile_id' => $profile->id,
         ]);

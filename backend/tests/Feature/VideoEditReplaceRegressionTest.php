@@ -33,7 +33,7 @@ class VideoEditReplaceRegressionTest extends TestCase
     {
         Storage::fake('public');
 
-        $admin = User::factory()->create(['role' => 'super']);
+        $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'sanctum');
 
         $display = Display::create(['name' => 'Main', 'location' => 'Lobby']);
@@ -73,7 +73,7 @@ class VideoEditReplaceRegressionTest extends TestCase
     {
         Storage::fake('public');
 
-        $admin = User::factory()->create(['role' => 'super']);
+        $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'sanctum');
 
         $display = Display::create(['name' => 'Main', 'location' => 'Lobby']);
@@ -112,7 +112,7 @@ class VideoEditReplaceRegressionTest extends TestCase
         // loosening from masking a regression in formData construction.
         Storage::fake('public');
 
-        $admin = User::factory()->create(['role' => 'super']);
+        $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin, 'sanctum');
 
         $display = Display::create(['name' => 'Main', 'location' => 'Lobby']);

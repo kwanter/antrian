@@ -41,8 +41,10 @@ class QueuesController extends Controller
     {
         $queue = $this->lifecycle->store($request->validated());
 
+        // F-09: public creation echo uses PublicQueueResource, which drops
+        // customer_name / customer_phone from the response.
         return response()->json([
-            'data' => $queue,
+            'data' => new \App\Http\Resources\PublicQueueResource($queue),
             'message' => 'Queue ticket created successfully',
         ], 201);
     }
@@ -137,8 +139,9 @@ class QueuesController extends Controller
                 'message' => $e->getMessage(),
             ], $e->statusCode());
         } catch (\Throwable $e) {
-            // Preserve the original catch-all: unexpected failures (DB, lock,
-            // broadcast wiring) surface as a 500 rather than leaking a stack trace.
+            // Unexpected failures (DB, lock, broadcast wiring) surface as a
+            // generic 500. Full detail is logged server-side; the response
+            // message must not echo exception internals (F-33).
             Log::error('Complete queue failed', [
                 'queue_id' => $queue->id ?? null,
                 'error' => $e->getMessage(),
@@ -146,7 +149,7 @@ class QueuesController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Failed to complete queue: '.$e->getMessage(),
+                'message' => 'Failed to complete queue.',
             ], 500);
         }
 
