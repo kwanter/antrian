@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuditLogsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CountersController;
+use App\Http\Controllers\Api\DisplayCompositeController;
 use App\Http\Controllers\Api\DisplaysController;
 use App\Http\Controllers\Api\KioskStationsController;
 use App\Http\Controllers\Api\LayananController;
@@ -29,6 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/queues/stats', [QueuesController::class, 'stats']);
 
     // Display page routes — public for display monitors
+    Route::get('/display-composite', DisplayCompositeController::class);
     Route::get('/displays', [DisplaysController::class, 'index']);
     Route::get('/displays/{display}', [DisplaysController::class, 'show']);
     Route::get('/displays/{display}/sync', [DisplaysController::class, 'sync']);

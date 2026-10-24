@@ -17,7 +17,7 @@
     .topbar .time{font-size:22px;font-weight:900;color:#60a5fa}
     .video-wrap{position:absolute;top:10vh;left:10px;right:10px;bottom:37vh;border-radius:12px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
     video{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
-    .novideo{display:none;align-items:center;justify-content:center;font-size:26px;color:#64748b;width:100%;height:100%}
+    .novideo{display:none;align-items:center;justify-content:center;font-size:26px;color:#64748b;width:100%;height:100%;text-align:center;padding:0 24px}
     #video-host{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
     .start-overlay{position:absolute;top:10vh;left:10px;right:10px;bottom:37vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,23,42,.88);z-index:5;cursor:pointer;border-radius:12px;border:3px solid #1d4ed8}
     .start-overlay .icon{font-size:72px;margin-bottom:20px;animation:pulse 2s infinite}
@@ -99,6 +99,17 @@
   var announcerSettings={}, audioUnlocked=false, lastAnnounced={};
   var isAnnouncing=false, savedVideoIndex=0, savedVideoTime=0;
   var announceAudio=null; // standalone Audio element for announcer
+  // ── Composite mode (no ?display= param) ────────────────────────────────────
+  // Single server pre-rendered MP4 mixes every active display panel+volume, so
+  // the TV needs ONE decoder. Composite status/video URL come from the public
+  // read-only /display-composite endpoint (rendering itself is done by the
+  // CLI watcher, never by this page). Generations swap at clip boundaries or
+  // after announcer handoff — never mid-clip, never mid-announcement.
+  var compositeMode=false, explicitDisplayId=null;
+  var composite=null, activeVideoUrl=null, pendingVideoUrl=null;
+  var videoFailed=false, displayRequest=0, compositeRequest=0;
+  var videosSignature=null, layananSignature=null, layananIntervals=[];
+  var lastDisplayId=null;
 
   function $(id){return document.getElementById(id)}
   function showErr(m){var e=$('err'); e.style.display='block'; e.innerHTML=m}
@@ -120,14 +131,47 @@
   function witaTime(d){var p=witaParts(d); return p.h+':'+p.i+':'+p.s}
   function today(){var p=witaParts(new Date()); return p.y+'-'+p.m+'-'+p.d}
   function setSync(){$('sync').innerHTML='sync: '+witaTime(new Date())+' '+TZ_LABEL}
-  function getJSON(url,cb){var x=new XMLHttpRequest(); x.open('GET',url,true); x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{cb(null,JSON.parse(x.responseText))}catch(e){cb(e)}}else cb(new Error('HTTP '+x.status+' '+url))}}; x.send()}
+  function getJSON(url,cb){
+    var x=new XMLHttpRequest(), done=false;
+    function finish(err,res){if(done)return;done=true;x.onreadystatechange=null;x.ontimeout=null;cb(err,res)}
+    x.open('GET',url,true);
+    x.timeout=10000;
+    x.onreadystatechange=function(){
+      if(x.readyState===4){
+        if(x.status>=200&&x.status<300){try{finish(null,JSON.parse(x.responseText))}catch(e){finish(e)}}
+        else finish(new Error(x.status===0?'Request failed: '+url:'HTTP '+x.status+' '+url))
+      }
+    };
+    x.ontimeout=function(){finish(new Error('Request timed out: '+url))};
+    x.send()
+  }
   function text(v){return (v===null||v===undefined)?'':String(v)}
   function esc(v){return text(v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c})}
   function setAnnouncerStatus(m){var e=$('announce'); if(e)e.innerHTML='🔔 announcer: '+esc(m)}
 
-  function initAnnouncer(){
+  function queryParam(name){
+    var q=window.location.search.substring(1);
+    if(!q) return null;
+    var parts=q.split('&');
+    for(var i=0;i<parts.length;i++){
+      var kv=parts[i].split('=');
+      if(kv[0]===name) return decodeURIComponent((kv[1]||'').replace(/\+/g,' '));
+    }
+    return null
+  }
+
+  // Refresh announcer settings on every config poll, but only reset the
+  // announcement dedupe when the display identity actually changes — a 15s
+  // config poll must never cause the same queue to re-announce.
+  // parseFloat(v||fallback) breaks volume 0 (falsy) — honor explicit 0.
+  function parseVolume(value, fallback){
+    var n=parseFloat(value);
+    return isNaN(n)||!isFinite(n)?fallback:Math.max(0,Math.min(1,n))
+  }
+
+  function initAnnouncer(resetKeys){
     announcerSettings=(display&&display.settings)||{};
-    lastAnnounced={};
+    if(resetKeys){lastAnnounced={}}
     if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off'); return}
     setAnnouncerStatus(audioUnlocked?'siap':'tekan OK')
   }
@@ -135,27 +179,46 @@
   function unlockAudio(){
     audioUnlocked=true;
     try{
-      var a=new Audio('/storage/announcers/silence.wav');
+      var a=new Audio('/sounds/silence.wav');
       a.volume=0.01;
       var p=a.play();
       if(p&&p.catch)p.catch(function(){});
       setTimeout(function(){try{a.pause();a.src=''}catch(e){}},250)
     }catch(e){}
-    initAnnouncer()
+    initAnnouncer(false)
   }
 
   function announcementKey(q){
     return q?String(q.id)+'|'+text(q.called_at||q.created_at||q.status):''
   }
 
-  // ── RECREATE VIDEO ELEMENT ─────────────────────────────────────────────────
-  // Replace the old <video> element in the DOM to get a fresh decoder on Tizen
-  function recreateVideoElement(idx, time, muted){
+  // ── VIDEO MOUNT / DECODER HANDOFF ─────────────────────────────────────────
+  // Fresh <video> element each (re)mount — Tizen 3 has ONE hardware decoder,
+  // it must never be revived on a dead node.
+  function mountVideo(){
     var host=$('video-host');
     host.innerHTML='<video id="vid" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block" muted></video>';
     var v=$('vid');
-    var vol=parseFloat((announcerSettings&&announcerSettings.volume)||1);
     v.onloadedmetadata=fitVideo;
+    return v
+  }
+
+  // Explicitly release the hardware decoder BEFORE the announcer Audio starts:
+  // pause, drop src, load. New Audio gets the decoder; the video element is
+  // recreated fresh (mountVideo) once the Audio ends.
+  function releaseVideoDecoder(){
+    var v=$('vid');
+    if(!v) return;
+    try{
+      v.pause();
+      v.removeAttribute('src');
+      v.load();
+    }catch(e){}
+  }
+
+  function recreateVideoElement(idx, time, muted){
+    var v=mountVideo();
+    var vol=parseVolume(announcerSettings&&announcerSettings.volume,1);
     v.onerror=function(){
       showErr('Video error. Pastikan MP4 H.264 + AAC');
       if(videos.length>1) setTimeout(function(){playVideo(videoIndex+1)},1500)
@@ -199,24 +262,124 @@
     fitVideo()
   }
 
+  // ── SERVER PRE-RENDERED COMPOSITE (single <video>, master volume) ──────────
+  function compositeStatusText(status){
+    if(status==='building') return 'Menyiapkan video gabungan...';
+    if(status==='empty') return 'Tidak ada display aktif';
+    if(status==='error') return 'Gagal membuat video gabungan';
+    return 'Video gabungan tidak tersedia';
+  }
+
+  function showCompositeStatus(status,message){
+    var el=$('novideo');
+    el.style.display='flex';
+    el.innerHTML=esc(compositeStatusText(status))+(message?' &mdash; '+esc(message):'')
+  }
+
+  function loadCompositeVideo(url){
+    var v=mountVideo();
+    videoFailed=false;
+    v.onerror=function(){videoFailed=true;showErr('Video gabungan error. Periksa renderer di server.')};
+    v.onended=function(){
+      if(pendingVideoUrl){loadCompositeVideo(pendingVideoUrl);return}
+      var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})
+    };
+    v.src=url;
+    activeVideoUrl=url; pendingVideoUrl=null;
+    v.muted=!started;
+    v.volume=1; // master volume — composite audio already mixes per-display volume
+    v.load();
+    if(started){var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})}
+    fitVideo()
+  }
+
+  function applyComposite(){
+    var data=composite||{};
+    var url=data.video_url||null;
+    var status=data.status||'unavailable';
+    if(status==='empty'){
+      releaseVideoDecoder(); $('video-host').innerHTML='';
+      activeVideoUrl=null; pendingVideoUrl=null; videoFailed=false;
+      showCompositeStatus(status,data.message); return
+    }
+    if(url&&data.displays&&data.displays.length){
+      $('displayName').innerHTML='Video Gabungan ('+data.displays.length+' display)';
+      var names=[];
+      for(var ni=0;ni<data.displays.length;ni++){names.push(esc(data.displays[ni].name||('Display '+data.displays[ni].id)))}
+      $('displayLoc').innerHTML=names.join(' · ')
+    }
+    if(url){
+      $('novideo').style.display='none';
+      if(activeVideoUrl===url&&!videoFailed) return; // unchanged healthy generation — no reload
+      if(!activeVideoUrl||videoFailed){
+        if(isAnnouncing){pendingVideoUrl=url;return} // one decoder: wait for handoff
+        loadCompositeVideo(url);
+      } else {
+        pendingVideoUrl=url                          // takeover at next clip loop / handoff
+      }
+    } else {
+      if(activeVideoUrl) return;                     // keep previous good MP4 while building/error
+      showCompositeStatus(status,data.message)
+    }
+  }
+
+  function loadComposite(){
+    var request=++compositeRequest;
+    getJSON(API+'/display-composite',function(err,res){
+      if(request!==compositeRequest) return;
+      if(err){
+        if(!activeVideoUrl) showCompositeStatus('unavailable','status gagal dimuat');
+        return
+      }
+      composite=(res&&res.data)||{};
+      applyComposite()
+    })
+  }
+
+  function showDisplayNotFound(){
+    display=null;
+    announcerSettings={};
+    setAnnouncerStatus('off');
+    $('displayName').innerHTML='Display tidak ditemukan';
+    $('displayLoc').innerHTML='';
+    activeVideoUrl=null; pendingVideoUrl=null; videos=[]; videosSignature=null;
+    $('video-host').innerHTML='';
+    var el=$('novideo');
+    el.style.display='flex';
+    el.innerHTML='Display tidak ditemukan. Periksa parameter display pada tautan.';
+    clearLayananIntervals(); layananSignature=null;
+    var g=$('grid'); if(g){g.innerHTML=''}
+  }
+
   // ── ANNOUNCER AUDIO PLAYBACK ─────────────────────────────────────────────
   function finishAnnouncerAudio(){
     if(!isAnnouncing) return;
     isAnnouncing=false;
     setAnnouncerStatus(audioUnlocked?'siap':'tekan OK');
     savedVideoTime=0;
+    if(compositeMode){
+      var url=pendingVideoUrl||activeVideoUrl;
+      if(url){loadCompositeVideo(url)} // handoff also applies a pending generation
+      return
+    }
+    if(!videos.length) return;
     recreateVideoElement(savedVideoIndex, savedVideoTime, false)
   }
 
   function playAnnouncerAudio(url, label){
     isAnnouncing=true;
     setAnnouncerStatus('memutar '+label);
+    releaseVideoDecoder(); // free the single decoder BEFORE the Audio starts
     if(announceAudio){announceAudio.pause();announceAudio=null}
     announceAudio=new Audio(url);
-    announceAudio.volume=parseFloat(announcerSettings.announcer_volume||announcerSettings.volume||1);
+    announceAudio.volume=parseVolume(announcerSettings.announcer_volume,parseVolume(announcerSettings.volume,1));
     var done=false;
     var finish=function(){
       if(done)return; done=true;
+      clearTimeout(timer);
+      if(announceAudio){
+        try{announceAudio.pause();announceAudio.removeAttribute('src');announceAudio.load()}catch(e){}
+      }
       announceAudio=null;
       finishAnnouncerAudio()
     };
@@ -225,7 +388,7 @@
       setAnnouncerStatus('audio error');
       finish()
     };
-    setTimeout(finish,30000);
+    var timer=setTimeout(finish,30000);
     var p=announceAudio.play();
     if(p&&p.catch)p.catch(function(){setAnnouncerStatus('gagal play');finish()})
   }
@@ -236,22 +399,43 @@
     var key=announcementKey(q);
     var mapKey=String(l.id);
     if(lastAnnounced[mapKey]===key) return;
-    lastAnnounced[mapKey]=key;
     if(!announcerSettings.announcer_enabled){setAnnouncerStatus('off');return}
     if(!audioUnlocked){setAnnouncerStatus('tekan OK');return}
+    // Record only when actually announcing — a pre-unlock poll must not burn
+    // the key, and later polls must still dedupe to exactly one TTS play.
+    lastAnnounced[mapKey]=key;
+    isAnnouncing=true;
     setAnnouncerStatus('membuat audio '+q.ticket_number);
     // Always use dynamic TTS
     getJSON(API+'/tts/queue/'+q.id,function(err,res){
-      if(err){setAnnouncerStatus('tts gagal');isAnnouncing=false;return}
+      if(err){setAnnouncerStatus('tts gagal');isAnnouncing=false;if(lastAnnounced[mapKey]===key)delete lastAnnounced[mapKey];return}
       playAnnouncerAudio(res.audio_url, res.ticket_number||q.ticket_number)
     })
   }
 
+  function ensurePlayback(){
+    var v=$('vid');
+    if(!v||isAnnouncing) return;
+    if(compositeMode){
+      if(!activeVideoUrl) return;
+      v.muted=false; v.volume=1; // pre-mixed master
+      var cp=v.play&&v.play(); if(cp&&cp.catch)cp.catch(function(){});
+      return
+    }
+    if(!videos.length) return;
+    var vol=parseVolume(announcerSettings&&announcerSettings.volume,1);
+    v.muted=vol<=0; v.volume=vol;
+    var p=v.play&&v.play(); if(p&&p.catch)p.catch(function(){})
+  }
+
+  // Idempotent: the first OK/Enter starts; repeated remote presses only
+  // unlock/ensure playback of the EXISTING element — never reload/reset it.
   function start(){
+    if(started){ ensurePlayback(); return }
     started=true;
     $('start').style.display='none';
     unlockAudio();
-    playVideo(0)
+    ensurePlayback()
   }
 
   document.onkeydown=function(e){
@@ -271,45 +455,73 @@
   }
   setInterval(tickClock,1000); tickClock()
 
+  // ── CONFIG POLLING (≤15s) ───────────────────────────────────────────────────
   function loadDisplay(){
+    var request=++displayRequest;
     getJSON(API+'/displays',function(err,res){
+      if(request!==displayRequest) return;
       if(err){showErr('Gagal display: '+err.message);return}
       var arr=res.data||[];
-      display=arr[0]||null;
-      for(var i=0;i<arr.length;i++){if(arr[i].is_active){display=arr[i];break}}
+      if(explicitDisplayId!==null){
+        var found=null;
+        for(var i=0;i<arr.length;i++){if(String(arr[i].id)===explicitDisplayId){found=arr[i];break}}
+        display=found||null;
+        if(!display){
+          // Unknown explicit ID: clear not-found state, never fall back to
+          // another display's playlist and never use the composite.
+          if(lastDisplayId!=='not-found'){showDisplayNotFound(); lastDisplayId='not-found'}
+          return
+        }
+      } else {
+        display=null;
+        for(var j=0;j<arr.length;j++){if(arr[j].is_active){display=arr[j];break}}
+      }
+      var currentId=display?display.id:null;
+      var changed=lastDisplayId!==currentId;
+      lastDisplayId=currentId;
       if(display){
         $('displayName').innerHTML=esc(display.name);
         $('displayLoc').innerHTML=esc(display.location||'');
-        initAnnouncer()
+      } else {
+        $('displayName').innerHTML='Tidak ada display aktif';
+        $('displayLoc').innerHTML=''
       }
-      loadVideos();
+      initAnnouncer(changed);
+      if(compositeMode){ loadComposite() } else { loadVideos() }
       loadLayanans()
     })
   }
 
+  function videoSignature(list){
+    var s='';
+    for(var i=0;i<list.length;i++){s+=list[i].id+':'+list[i].file_url+'|'}
+    return s
+  }
+
   function loadVideos(){
     if(!display) return;
-    getJSON(API+'/videos?display_id='+display.id,function(err,res){
+    var currentId=display.id;
+    getJSON(API+'/videos?display_id='+currentId+'&is_active=1',function(err,res){
+      if(!display||display.id!==currentId) return;
       if(err){$('novideo').innerHTML='Video gagal dimuat';$('novideo').style.display='flex';return}
-      videos=res.data||[];
-      if(videos.length){
-        $('novideo').style.display='none';
-        // Pre-create video element (don't auto-play yet — wait for start())
-        var host=$('video-host');
-        host.innerHTML='<video id="vid" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block" muted></video>';
-        var v=$('vid');
-        v.onloadedmetadata=fitVideo;
-        v.onerror=function(){
-          showErr('Video error. Pastikan MP4 H.264 + AAC');
-          if(videos.length>1) setTimeout(function(){playVideo(videoIndex+1)},1500)
-        };
-        v.onended=function(){playVideo(videoIndex+1)};
-        v.src=videos[0].file_url;
-        v.muted=true;
-        v.load()
-      } else {
+      var raw=res.data||[], list=[];
+      for(var i=0;i<raw.length;i++){if(raw[i].is_active){list.push(raw[i])}}
+      list.sort(function(a,b){return a.playlist_order-b.playlist_order||a.id-b.id});
+      var sig=videoSignature(list);
+      var changed=sig!==videosSignature;
+      videos=list; videosSignature=sig;
+      if(!videos.length){
+        releaseVideoDecoder(); $('video-host').innerHTML='';
         $('novideo').style.display='flex';
-        $('novideo').innerHTML='Tidak ada video aktif'
+        $('novideo').innerHTML='Tidak ada video aktif';
+        return
+      }
+      $('novideo').style.display='none';
+      if(changed&&!isAnnouncing){
+        // Real playlist change only — an unchanged playlist never reloads the
+        // running <video> (single decoder stays untouched).
+        videoIndex=videoIndex%videos.length;
+        recreateVideoElement(videoIndex, 0, !started)
       }
     })
   }
@@ -324,11 +536,27 @@
     return 'Semua loket'
   }
 
+  function clearLayananIntervals(){
+    for(var i=0;i<layananIntervals.length;i++){clearInterval(layananIntervals[i])}
+    layananIntervals=[]
+  }
+
+  function layananKey(list){
+    var k='';
+    for(var i=0;i<list.length;i++){k+=list[i].id+','}
+    return k
+  }
+
   function loadLayanans(){
     getJSON(API+'/layanans?active_only=1',function(err,res){
       if(err){showErr('Gagal layanan: '+err.message);return}
       clearErr();
-      renderLayanans(res.data||[])
+      var list=res.data||[];
+      var key=layananKey(list);
+      if(key===layananSignature) return; // unchanged config: keep cards + intervals
+      layananSignature=key;
+      clearLayananIntervals();
+      renderLayanans(list)
     })
   }
 
@@ -344,7 +572,8 @@
         card.innerHTML='<div class="service"><div class="service-name">'+esc(l.name)+'</div><div class="service-code">'+esc(l.code)+'</div></div><div class="body"><div class="ticket js-ticket">-</div><div class="loket js-loket">'+esc(defaultLoket(l))+'</div><div class="status js-status waiting">Menunggu antrian</div></div>';
         g.appendChild(card);
         updateQueue(l,card);
-        setInterval(function(){updateQueue(l,card)},3000)
+        var iv=setInterval(function(){updateQueue(l,card)},3000);
+        layananIntervals.push(iv)
       })(list[i])
     }
   }
@@ -382,7 +611,10 @@
     })
   }
 
-  loadDisplay()
+  compositeMode=queryParam('display')===null;
+  explicitDisplayId=compositeMode?null:queryParam('display');
+  loadDisplay();
+  setInterval(loadDisplay,15000);
 })()
 </script>
 </body>
